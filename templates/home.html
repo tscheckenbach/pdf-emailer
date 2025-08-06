@@ -1,0 +1,53 @@
+{{define "content"}}
+<div class="px-4 py-6 sm:px-0">
+    <div class="text-center">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">{{.Title}}</h1>
+        <p class="text-xl text-gray-600 mb-8">{{.Description}}</p>
+        
+        <div class="max-w-3xl mx-auto">
+            <div class="bg-white shadow rounded-lg p-6 mb-6">
+                <h2 class="text-2xl font-semibold text-gray-900 mb-4">Features</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="text-center p-4">
+                        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="font-medium text-gray-900">PDF Processing</h3>
+                        <p class="text-sm text-gray-600 mt-1">Upload and process PDF documents</p>
+                    </div>
+                    
+                    <div class="text-center p-4">
+                        <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="font-medium text-gray-900">Email Integration</h3>
+                        <p class="text-sm text-gray-600 mt-1">Send PDFs via email automatically</p>
+                    </div>
+                    
+                    <div class="text-center p-4">
+                        <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="font-medium text-gray-900">Analytics</h3>
+                        <p class="text-sm text-gray-600 mt-1">Track email delivery and opens</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-2xl font-semibold text-gray-900 mb-4">Get Started</h2>
+                <p class="text-gray-600 mb-6">Ready to start sending PDFs via email? Check out our Hello World example to see the application in action.</p>
+                <a href="/hello" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    View Hello World Example
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}} 

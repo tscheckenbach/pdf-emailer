@@ -1,0 +1,250 @@
+# PDF Emailer
+
+A modern web application built with Go, featuring HTMX for dynamic interactions, TailwindCSS for styling, and PostgreSQL for data storage. The application is designed with testability in mind and uses minimal external dependencies.
+
+## Features
+
+- **Modern Web Stack**: Go + HTMX + TailwindCSS
+- **Database**: PostgreSQL with pgx driver (no ORM)
+- **HTTP Router**: Chi router with middleware
+- **Logging**: Structured logging with slog
+- **Testing**: Comprehensive unit tests with mocking
+- **Configuration**: Environment-based configuration
+- **Security**: Built-in security headers and CORS support
+
+## Project Structure
+
+```
+pdf-emailer/
+├── main.go                 # Application entry point
+├── go.mod                  # Go module definition
+├── env.example             # Example environment variables
+├── README.md              # This file
+├── internal/              # Internal application code
+│   ├── config/           # Configuration management
+│   ├── database/         # Database connection and interface
+│   ├── handlers/         # HTTP request handlers
+│   ├── middleware/       # HTTP middleware
+│   └── server/           # HTTP server setup
+├── templates/            # HTML templates
+│   ├── base.html         # Base template with layout
+│   ├── home.html         # Home page template
+│   └── hello.html        # Hello World example template
+└── static/               # Static assets (CSS, JS, images)
+```
+
+## Prerequisites
+
+- Go 1.24.5 or later (recommended: use Homebrew version)
+- PostgreSQL 12 or later
+- Git
+
+## Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd pdf-emailer
+   ```
+
+2. **Install dependencies**
+   ```bash
+   go mod tidy
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   # Quick setup (recommended)
+   ./scripts/setup-env.sh -a
+   
+   # Or manually:
+   # For local development
+   cp env.example .env
+   # Edit .env with your configuration
+   
+   # For Docker development
+   cp env.docker.example .env.docker
+   # Edit .env.docker with your configuration
+   ```
+
+4. **Set up PostgreSQL database**
+   ```sql
+   CREATE DATABASE pdf_emailer;
+   CREATE USER pdf_emailer_user WITH PASSWORD 'your_password';
+   GRANT ALL PRIVILEGES ON DATABASE pdf_emailer TO pdf_emailer_user;
+   ```
+
+5. **Run the application**
+   ```bash
+   go run main.go
+   ```
+
+The application will be available at `http://localhost:8080`
+
+## Configuration
+
+The application uses environment variables for configuration:
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SERVER_PORT` | `8080` | HTTP server port |
+| `DATABASE_HOST` | `localhost` | Database host |
+| `DATABASE_PORT` | `5432` | Database port |
+| `DATABASE_NAME` | `pdf_emailer` | Database name |
+| `DATABASE_USER` | - | Database username |
+| `DATABASE_PASSWORD` | - | Database password |
+| `DATABASE_OPTIONS` | - | Database connection options |
+| `ENVIRONMENT` | `development` | Application environment |
+| `LOG_LEVEL` | `info` | Logging level |
+
+### Environment Files
+
+- `.env` - Local development environment variables
+- `.env.docker` - Docker environment variables (not committed to git)
+- `.env.docker.example` - Example Docker environment file (committed to git)
+
+**Security Note**: Never commit `.env` or `.env.docker` files to version control as they may contain sensitive information like passwords and API keys.
+
+### Quick Setup
+
+Use the provided setup script to quickly configure your environment:
+
+```bash
+# Set up both local and Docker environments
+./scripts/setup-env.sh -a
+
+# Set up only Docker environment
+./scripts/setup-env.sh -d
+
+# Set up only local environment
+./scripts/setup-env.sh -l
+
+# Show help
+./scripts/setup-env.sh -h
+```
+
+## API Endpoints
+
+### Web Routes
+- `GET /` - Home page
+- `GET /hello` - Hello World example with HTMX
+
+### API Routes
+- `GET /api/health` - Health check (JSON)
+- `GET /api/health/json` - Health check (JSON format)
+- `GET /api/counter` - Get counter value
+- `POST /api/counter/increment` - Increment counter
+- `POST /api/counter/decrement` - Decrement counter
+- `GET /api/dynamic-content` - Get dynamic content for HTMX
+
+## Testing
+
+The application includes comprehensive unit tests with mocking for database operations:
+
+```bash
+# Run all tests (uses Go 1.24.5 automatically)
+make test
+
+# Run tests with coverage
+make test-coverage
+
+# Run tests manually (ensure Go 1.24.5 is in PATH)
+go test ./...
+
+# Switch to Go 1.24.5 for this session
+./scripts/use-go-1.24.sh
+```
+
+**Note**: The application requires Go 1.24.5+ for the `log/slog` package. If you have multiple Go versions installed, use the provided scripts to ensure the correct version is used.
+
+### Test Structure
+
+- **Handlers**: Test HTTP handlers with mocked database
+- **Database**: Test database operations with interface
+- **Middleware**: Test middleware functionality
+- **Configuration**: Test configuration loading
+
+## Development
+
+### Adding New Routes
+
+1. Add the handler method in `internal/handlers/handlers.go`
+2. Register the route in `internal/server/server.go`
+3. Add tests in `internal/handlers/handlers_test.go`
+
+### Adding New Templates
+
+1. Create the template file in `templates/`
+2. Update the handler to use the template
+3. Add any necessary data structures
+
+### Database Operations
+
+The application uses a database interface for testability:
+
+```go
+// Example database operation
+rows, err := db.Query(ctx, "SELECT * FROM users WHERE id = $1", userID)
+```
+
+## Architecture
+
+### Design Principles
+
+- **Testability**: All components are designed for easy testing
+- **Minimal Dependencies**: Uses standard library where possible
+- **Interface-based**: Database operations use interfaces for mocking
+- **Structured Logging**: Uses slog for consistent logging
+- **Security First**: Built-in security headers and CORS
+
+### Key Components
+
+- **Chi Router**: Fast, lightweight HTTP router
+- **pgx**: High-performance PostgreSQL driver
+- **HTMX**: Dynamic HTML without JavaScript
+- **TailwindCSS**: Utility-first CSS framework
+- **slog**: Structured logging from Go standard library
+
+
+
+## Deployment
+
+### Docker (Recommended)
+
+```dockerfile
+FROM golang:1.21-alpine AS builder
+WORKDIR /app
+COPY . .
+RUN go mod download
+RUN go build -o main .
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
+WORKDIR /root/
+COPY --from=builder /app/main .
+CMD ["./main"]
+```
+
+### Environment Variables for Production
+
+```bash
+ENVIRONMENT=production
+SERVER_PORT=8080
+DATABASE_URL=postgres://user:pass@host:5432/db?sslmode=require
+LOG_LEVEL=info
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Run the test suite
+6. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details. 
