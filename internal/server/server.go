@@ -57,16 +57,11 @@ func setupRoutes(router chi.Router, handlers *handlers.Handler) {
 
 	// API routes
 	router.Route("/api", func(r chi.Router) {
-		r.Get("/health", handlers.HealthCheck)
-		r.Get("/health/json", handlers.HealthCheckJSON)
-		r.Get("/counter", handlers.GetCounter)
-		r.Post("/counter/increment", handlers.IncrementCounter)
-		r.Post("/counter/decrement", handlers.DecrementCounter)
-		r.Get("/dynamic-content", handlers.DynamicContent)
 	})
 
 	// Web routes
 	router.Get("/", handlers.Home)
+	router.Get("/health", handlers.HealthCheck)
 	router.Get("/hello", handlers.HelloWorld)
 }
 

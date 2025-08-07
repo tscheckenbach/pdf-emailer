@@ -16,7 +16,7 @@ type MockDB struct {
 }
 
 func (m *MockDB) Close(ctx context.Context) {}
-func (m *MockDB) Pool() interface{}         { return nil }
+func (m *MockDB) Pool() interface{} { return nil }
 func (m *MockDB) Ping(ctx context.Context) error {
 	return m.pingError
 }
@@ -118,48 +118,4 @@ func TestHealthCheck(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestCounterOperations(t *testing.T) {
-	// Reset counter for test
-	counter.value = 0
-
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	handler := &Handler{
-		db:     &MockDB{},
-		logger: logger,
-		tmpl:   nil,
-	}
-
-	// Test increment
-	t.Run("increment", func(t *testing.T) {
-		req := httptest.NewRequest("POST", "/api/counter/increment", nil)
-		w := httptest.NewRecorder()
-
-		handler.IncrementCounter(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status code %d, got %d", http.StatusOK, w.Code)
-		}
-
-		if w.Body.String() != "1" {
-			t.Errorf("Expected body '1', got '%s'", w.Body.String())
-		}
-	})
-
-	// Test decrement
-	t.Run("decrement", func(t *testing.T) {
-		req := httptest.NewRequest("POST", "/api/counter/decrement", nil)
-		w := httptest.NewRecorder()
-
-		handler.DecrementCounter(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status code %d, got %d", http.StatusOK, w.Code)
-		}
-
-		if w.Body.String() != "0" {
-			t.Errorf("Expected body '0', got '%s'", w.Body.String())
-		}
-	})
 }

@@ -31,28 +31,7 @@ func main() {
 
 	// Initialize database connection with retry
 	var db *database.DB
-	maxRetries := 30
-	retryDelay := 2 * time.Second
-
-	for i := 0; i < maxRetries; i++ {
-		logger.Info("attempting to connect to database", "attempt", i+1, "max_attempts", maxRetries)
-		db, err = database.NewConnection(cfg.GetDatabaseUrl())
-		if err == nil {
-			logger.Info("successfully connected to database")
-			break
-		}
-
-		logger.Warn("failed to connect to database", "attempt", i+1, "error", err)
-		if i < maxRetries-1 {
-			logger.Info("retrying in", "delay", retryDelay)
-			time.Sleep(retryDelay)
-		}
-	}
-
-	if err != nil {
-		logger.Error("failed to connect to database after all retries", "error", err)
-		os.Exit(1)
-	}
+	db = dbConnect(logger, db, cfg)
 	defer db.Close(context.Background())
 
 	// Initialize handlers
@@ -86,4 +65,31 @@ func main() {
 	}
 
 	logger.Info("server exited")
+}
+
+func dbConnect(logger *slog.Logger, db *database.DB, cfg *config.Config) *database.DB {
+	var err error
+	maxRetries := 30
+	retryDelay := 2 * time.Second
+
+	for i := 0; i < maxRetries; i++ {
+		logger.Info("attempting to connect to database", "attempt", i+1, "max_attempts", maxRetries)
+		db, err = database.NewConnection(cfg.GetDatabaseUrl())
+		if err == nil {
+			logger.Info("successfully connected to database")
+			break
+		}
+
+		logger.Warn("failed to connect to database", "attempt", i+1, "error", err)
+		if i < maxRetries-1 {
+			logger.Info("retrying in", "delay", retryDelay)
+			time.Sleep(retryDelay)
+		}
+	}
+
+	if err != nil {
+		logger.Error("failed to connect to database after all retries", "error", err)
+		os.Exit(1)
+	}
+	return db
 }
