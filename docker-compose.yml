@@ -8,8 +8,8 @@ services:
     env_file:
       - .env.docker
     volumes:
-      - ./templates:/app/templates
-      - ./static:/app/static
+      - ./assets:/app/assets
+      - ./uploads:/app/uploads
     restart: unless-stopped
 
   db:

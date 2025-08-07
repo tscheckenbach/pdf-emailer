@@ -36,12 +36,12 @@ WORKDIR /app
 COPY --from=builder /app/main .
 
 # Copy templates and static files
-COPY --from=builder /app/templates ./templates
-COPY --from=builder /app/static ./static
+COPY --from=builder /app/assets ./assets
 COPY --from=builder /app/.env.docker ./.env
 
-# Change ownership to non-root user
-RUN chown -R appuser:appgroup /app
+# Create uploads directory and set permissions
+RUN mkdir -p /app/uploads && \
+    chown -R appuser:appgroup /app
 
 # Switch to non-root user
 USER appuser

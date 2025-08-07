@@ -53,7 +53,7 @@ func New(port string, handlers *handlers.Handler, logger *slog.Logger) *Server {
 // setupRoutes configures all application routes
 func setupRoutes(router chi.Router, handlers *handlers.Handler) {
 	// Static files
-	router.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	router.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("assets/js"))))
 
 	// API routes
 	router.Route("/api", func(r chi.Router) {

@@ -4,7 +4,11 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
+	"time"
 
+	"io"
 	"pdf-emailer/internal/database"
 )
 
@@ -19,7 +23,7 @@ type Handler struct {
 func New(db *database.DB, logger *slog.Logger) *Handler {
 	// Parse templates with proper naming
 	tmpl := template.New("")
-	tmpl = template.Must(tmpl.ParseGlob("templates/*.html"))
+	tmpl = template.Must(tmpl.ParseGlob("assets/templates/*.html"))
 
 	return &Handler{
 		db:     db,
