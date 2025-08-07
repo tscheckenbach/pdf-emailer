@@ -62,7 +62,6 @@ func setupRoutes(router chi.Router, handlers *handlers.Handler) {
 	// Web routes
 	router.Get("/", handlers.Home)
 	router.Get("/health", handlers.HealthCheck)
-	router.Get("/hello", handlers.HelloWorld)
 }
 
 // Start starts the HTTP server
