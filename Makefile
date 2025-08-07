@@ -5,6 +5,7 @@ help:
 	@echo "Available commands:"
 	@echo "  build         - Build the application"
 	@echo "  run           - Run the application"
+	@echo "  dev           - Run with Air (auto-reload on file changes)"
 	@echo "  test          - Run tests"
 	@echo "  test-coverage - Run tests with coverage"
 	@echo "  clean         - Clean build artifacts"
@@ -18,6 +19,16 @@ build:
 # Run the application
 run:
 	go run main.go
+
+# Run the application with Air (auto-reload on file changes)
+dev:
+	@echo "Starting database..."
+	docker compose stop && docker compose up db -d
+	@echo "Waiting for database to be ready..."
+	@until docker compose exec -T db pg_isready -U appuser; do sleep 1; done
+	@echo "Database is ready!"
+	@echo "Starting Air development server..."
+	air
 
 # Run tests
 test:
@@ -46,14 +57,8 @@ lint:
 # Install development tools
 install-tools:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install github.com/air-verse/air@latest
 
-# Database setup (requires PostgreSQL)
-db-setup:
-	@echo "Setting up database..."
-	@echo "Please run the following SQL commands in your PostgreSQL instance:"
-	@echo "CREATE DATABASE pdf_emailer;"
-	@echo "CREATE USER pdf_emailer_user WITH PASSWORD 'your_password';"
-	@echo "GRANT ALL PRIVILEGES ON DATABASE pdf_emailer TO pdf_emailer_user;"
 
 
 
