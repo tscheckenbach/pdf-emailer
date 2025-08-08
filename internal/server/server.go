@@ -31,7 +31,7 @@ func New(port string, handlers *handlers.Handler, logger *slog.Logger) *Server {
 	router.Use(chimiddleware.GetHead)
 	router.Use(chimiddleware.Compress(5))
 	router.Use(chimiddleware.Timeout(60))
-	router.Use(chimiddleware.Logger)
+	router.Use(middleware.Logger(logger)) // Use our custom logger
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())
 

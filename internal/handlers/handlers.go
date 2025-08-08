@@ -6,38 +6,78 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/mail"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"pdf-emailer/internal/database"
+	"pdf-emailer/internal/email"
+	"pdf-emailer/internal/utils"
 )
 
 // Handler holds all HTTP handlers
 type Handler struct {
-	db     database.DBInterface
-	logger *slog.Logger
-	tmpl   *template.Template
+	db           database.DBInterface
+	logger       *slog.Logger
+	tmpl         *template.Template
+	emailService *email.EmailService
 }
 
 // New creates a new handler instance
-func New(db *database.DB, logger *slog.Logger) *Handler {
+func New(db *database.DB, logger *slog.Logger, emailService *email.EmailService) *Handler {
 	// Parse templates with proper naming from html subdirectory
 	tmpl := template.New("")
-	tmpl = template.Must(tmpl.ParseGlob("assets/templates/html/*.html"))
+
+	// Try multiple possible paths for templates
+	templatePaths := []string{
+		"assets/templates/html/*.html",
+		"./assets/templates/html/*.html",
+		"../assets/templates/html/*.html",
+	}
+
+	var err error
+	for _, path := range templatePaths {
+		tmpl, err = tmpl.ParseGlob(path)
+		if err == nil {
+			logger.Info("templates loaded successfully", "path", path)
+			break
+		}
+		logger.Debug("failed to parse templates from path", "path", path, "error", err)
+	}
+
+	if err != nil {
+		logger.Error("failed to parse templates from all paths", "error", err)
+		// Return a handler with nil template - it will handle the error in the Home method
+		return &Handler{
+			db:           db,
+			logger:       logger,
+			tmpl:         nil,
+			emailService: emailService,
+		}
+	}
+
+	// Debug: list all available templates
+	logger.Info("available templates", "templates", tmpl.DefinedTemplates())
 
 	return &Handler{
-		db:     db,
-		logger: logger,
-		tmpl:   tmpl,
+		db:           db,
+		logger:       logger,
+		tmpl:         tmpl,
+		emailService: emailService,
 	}
 }
 
 // Home handles the home page
 func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 	h.logger.Info("home page request", "method", r.Method, "path", r.URL.Path)
+
+	// Check if template is available
+	if h.tmpl == nil {
+		h.logger.Error("template not available")
+		http.Error(w, "Template not available", http.StatusInternalServerError)
+		return
+	}
 
 	data := map[string]interface{}{
 		"Title":       "PDF Emailer",
@@ -47,7 +87,7 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.tmpl.ExecuteTemplate(w, "base", data); err != nil {
 		h.logger.Error("failed to execute template", "error", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Error(w, "failed to execute template", http.StatusInternalServerError)
 	}
 }
 
@@ -55,13 +95,7 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	h.logger.Debug("health check request")
 
-	// Check database connection
-	if err := h.db.Ping(r.Context()); err != nil {
-		h.logger.Error("database health check failed", "error", err)
-		http.Error(w, "Database connection failed", http.StatusServiceUnavailable)
-		return
-	}
-
+	// Simple health check - just return OK since we don't use the database yet
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"status":"healthy"}`))
@@ -117,11 +151,42 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get template selection from form
+	templateName := r.FormValue("template")
+	if templateName == "" {
+		h.renderUploadError(w, "Template muss ausgewählt werden")
+		return
+	}
+
+	// Validate template name
+	validTemplates := []string{"template1", "template2", "template3"}
+	templateValid := false
+	for _, validTemplate := range validTemplates {
+		if templateName == validTemplate {
+			templateValid = true
+			break
+		}
+	}
+	if !templateValid {
+		h.renderUploadError(w, "Ungültiges Template ausgewählt")
+		return
+	}
+
+	// Send email with PDF attachment
+	recipientName := filename // Use filename as recipient name for now
+	err = h.emailService.SendEmailWithAttachment(email, recipientName, filePath, templateName)
+	if err != nil {
+		h.logger.Error("Failed to send email", "error", err, "email", email, "template", templateName)
+		h.renderUploadError(w, "Fehler beim Senden der E-Mail: "+err.Error())
+		return
+	}
+
 	// Log the parsed information
-	h.logger.Info("File uploaded successfully",
+	h.logger.Info("File uploaded and email sent successfully",
 		"original_filename", handler.Filename,
 		"parsed_filename", filename,
 		"email", email,
+		"template", templateName,
 		"file_path", filePath)
 
 	// Success: return green checkmark HTML for HTMX swap
@@ -171,88 +236,18 @@ func parseFilenameWithEmail(fullFilename string) (filename, email string, err er
 	email = baseName[emailStart+1:]
 
 	// Validate email format
-	if !isValidEmail(email) {
+	if !utils.IsValidEmail(email) {
 		return "", "", fmt.Errorf("Ungültige E-Mail-Adresse im Dateinamen: %s", email)
 	}
 
 	return filename, email, nil
 }
 
-// isValidEmail validates email format using Go's net/mail package
-func isValidEmail(email string) bool {
-	// Use Go's built-in mail.ParseAddress for RFC 5322 compliant validation
-	addr, err := mail.ParseAddress(email)
-	if err != nil {
-		return false
-	}
-
-	// Extract the email address (remove display name if present)
-	emailAddr := addr.Address
-	if emailAddr == "" {
-		return false
-	}
-
-	// Basic sanity checks that mail.ParseAddress might not catch
-	// Check for minimum length (a@b.c minimum)
-	if len(emailAddr) < 5 {
-		return false
-	}
-
-	// Check for maximum length (RFC 5321 limit)
-	if len(emailAddr) > 254 {
-		return false
-	}
-
-	// Split by @ and validate parts
-	parts := strings.Split(emailAddr, "@")
-	if len(parts) != 2 {
-		return false
-	}
-
-	localPart := parts[0]
-	domain := parts[1]
-
-	// Validate local part length (RFC 5321 limit)
-	if len(localPart) == 0 || len(localPart) > 64 {
-		return false
-	}
-
-	// Validate domain length (RFC 5321 limit)
-	if len(domain) == 0 || len(domain) > 253 {
-		return false
-	}
-
-	// Check for valid domain structure (must have at least one dot)
-	if !strings.Contains(domain, ".") {
-		return false
-	}
-
-	// Check for valid TLD (at least 2 characters)
-	domainParts := strings.Split(domain, ".")
-	tld := domainParts[len(domainParts)-1]
-	if len(tld) < 2 {
-		return false
-	}
-
-	// Check for invalid characters in domain
-	invalidDomainChars := []string{"!", "#", "$", "%", "&", "*", "+", "=", "?", "^", "{", "|", "}", "~"}
-	for _, char := range invalidDomainChars {
-		if strings.Contains(domain, char) {
-			return false
-		}
-	}
-
-	return true
-}
-
 // renderUploadError renders an error message for HTMX
 func (h *Handler) renderUploadError(w http.ResponseWriter, msg string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusBadRequest)
-
 	// Return both the error icon and the error message as a data attribute
 	escapedMsg := template.HTMLEscapeString(msg)
-	w.Write([]byte(fmt.Sprintf(`<div class="relative group" data-error="%s">
+	errorHTML := fmt.Sprintf(`<div class="relative group" data-error="%s">
 		<svg class="w-5 h-5 text-red-500 cursor-help" fill="currentColor" viewBox="0 0 20 20">
 			<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
 		</svg>
@@ -260,5 +255,10 @@ func (h *Handler) renderUploadError(w http.ResponseWriter, msg string) {
 			%s
 			<div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-red-600"></div>
 		</div>
-	</div>`, escapedMsg, escapedMsg)))
+	</div>`, escapedMsg, escapedMsg)
+
+	// Set headers and write response manually
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusBadRequest)
+	w.Write([]byte(errorHTML))
 }

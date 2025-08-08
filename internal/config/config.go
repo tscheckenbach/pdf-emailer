@@ -13,6 +13,7 @@ type Config struct {
 	ServerPort  string
 	Environment string
 	DatabaseConfig
+	SMTPConfig
 }
 
 type DatabaseConfig struct {
@@ -22,6 +23,16 @@ type DatabaseConfig struct {
 	User     string
 	Password string
 	Options  string
+}
+
+type SMTPConfig struct {
+	Host      string
+	Port      string
+	Username  string
+	Password  string
+	FromEmail string
+	FromName  string
+	UseTLS    bool
 }
 
 // Load loads configuration from environment variables
@@ -51,6 +62,17 @@ func Load() (*Config, error) {
 		User:     getEnv("POSTGRES_USER", ""),
 		Password: getEnv("POSTGRES_PASSWORD", ""),
 		Options:  getEnv("POSTGRES_OPTIONS", ""),
+	}
+
+	// Use individual SMTP config fields
+	config.SMTPConfig = SMTPConfig{
+		Host:      getEnv("SMTP_HOST", "smtp.example.com"),
+		Port:      getEnv("SMTP_PORT", "587"),
+		Username:  getEnv("SMTP_USERNAME", ""),
+		Password:  getEnv("SMTP_PASSWORD", ""),
+		FromEmail: getEnv("SMTP_FROM_EMAIL", "noreply@example.com"),
+		FromName:  getEnv("SMTP_FROM_NAME", "PDF Emailer"),
+		UseTLS:    getEnv("SMTP_USE_TLS", "true") == "true",
 	}
 
 	// Only validate required fields if we're not in development mode

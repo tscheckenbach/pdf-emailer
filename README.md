@@ -11,6 +11,7 @@ A modern web application built with Go, featuring HTMX for dynamic interactions,
 - **Testing**: Comprehensive unit tests with mocking
 - **Configuration**: Environment-based configuration
 - **Security**: Built-in security headers and CORS support
+- **Email Service**: Robust email sending with attachments using gomail library
 
 ## Project Structure
 
@@ -23,9 +24,11 @@ pdf-emailer/
 ├── internal/              # Internal application code
 │   ├── config/           # Configuration management
 │   ├── database/         # Database connection and interface
+│   ├── email/            # Email service with SMTP support
 │   ├── handlers/         # HTTP request handlers
 │   ├── middleware/       # HTTP middleware
-│   └── server/           # HTTP server setup
+│   ├── server/           # HTTP server setup
+│   └── utils/            # Shared utilities (email validation, etc.)
 ├── templates/            # HTML templates
 │   ├── base.html         # Base template with layout
 │   ├── home.html         # Home page template
