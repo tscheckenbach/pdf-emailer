@@ -1,10 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
-    const fileList = document.getElementById('fileList');
-    const fileItems = document.getElementById('fileItems');
-    const uploadForm = document.getElementById('uploadForm');
-    const uploadBtn = document.getElementById('uploadBtn');
+    const fileListContainer = document.getElementById('fileListContainer');
     const uploadProgress = document.getElementById('uploadProgress');
     const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
@@ -50,34 +47,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateFileList() {
         if (selectedFiles.length > 0) {
-            fileList.classList.remove('hidden');
-            fileItems.innerHTML = '';
-            
-            selectedFiles.forEach((file, index) => {
-                const fileItem = document.createElement('div');
-                fileItem.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
-                fileItem.setAttribute('data-filename', file.name);
-                fileItem.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        <!-- Status Icon (will be updated by HTMX) -->
-                        <div class="status-icon">
-                            <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2h12v8H4V6z" clip-rule="evenodd"></path>
-                            </svg>
+            fileListContainer.innerHTML = `
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Selected Files:</h3>
+                <div class="space-y-2">
+                    ${selectedFiles.map((file, index) => `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg" data-filename="${file.name}">
+                            <div class="flex items-center space-x-3">
+                                <div class="status-icon">
+                                    <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2h12v8H4V6z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-sm font-medium text-gray-900">${file.name}</span>
+                                <span class="text-xs text-gray-500">(${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                            </div>
+                            <button type="button" onclick="removeFile(${index})" class="text-red-500 hover:text-red-700">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
                         </div>
-                        <span class="text-sm font-medium text-gray-900">${file.name}</span>
-                        <span class="text-xs text-gray-500">(${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                    </div>
-                    <button type="button" onclick="removeFile(${index})" class="text-red-500 hover:text-red-700">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    `).join('')}
+                </div>
+                <div class="flex justify-center mt-4">
+                    <button type="button" onclick="uploadFiles()" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                         </svg>
+                        Upload Files
                     </button>
-                `;
-                fileItems.appendChild(fileItem);
-            });
+                </div>
+            `;
         } else {
-            fileList.classList.add('hidden');
+            fileListContainer.innerHTML = '';
         }
     }
 
@@ -86,10 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateFileList();
     };
 
-    // Form submission
-    uploadForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
+    window.uploadFiles = async function() {
         const template = document.getElementById('template').value;
         if (!template) {
             alert('Es muss ein Template ausgewählt werden');
@@ -101,11 +100,10 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        uploadBtn.disabled = true;
         uploadProgress.classList.remove('hidden');
         
         // Show loading state for all files
-        selectedFiles.forEach((file, index) => {
+        selectedFiles.forEach((file) => {
             const fileItem = document.querySelector(`[data-filename="${file.name}"]`);
             if (fileItem) {
                 const statusIcon = fileItem.querySelector('.status-icon');
@@ -138,10 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 
                 if (response.ok) {
-                    // Get the HTMX response content
                     const responseText = await response.text();
-                    
-                    // Find the file item and update its status icon
                     const fileItem = document.querySelector(`[data-filename="${file.name}"]`);
                     if (fileItem) {
                         const statusIcon = fileItem.querySelector('.status-icon');
@@ -149,13 +144,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             statusIcon.innerHTML = responseText;
                         }
                     }
-                    
-                    console.log(`File ${file.name} uploaded successfully`);
                 } else {
-                    // Handle error response - server now returns complete error HTML with tooltip
                     const errorHtml = await response.text();
-                    
-                    // Find the file item and update its status icon with error
                     const fileItem = document.querySelector(`[data-filename="${file.name}"]`);
                     if (fileItem) {
                         const statusIcon = fileItem.querySelector('.status-icon');
@@ -163,11 +153,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             statusIcon.innerHTML = errorHtml;
                         }
                     }
-                    
-                    console.error(`Error uploading ${file.name}:`, errorHtml);
                 }
             } catch (error) {
-                // Handle network errors
                 const fileItem = document.querySelector(`[data-filename="${file.name}"]`);
                 if (fileItem) {
                     const statusIcon = fileItem.querySelector('.status-icon');
@@ -185,8 +172,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         `;
                     }
                 }
-                
-                console.error(`Error uploading ${file.name}:`, error);
             }
             
             completedUploads++;
@@ -195,13 +180,10 @@ document.addEventListener('DOMContentLoaded', function() {
             progressText.textContent = progress + '%';
         }
         
-        // Reset form after upload but keep file list visible
         setTimeout(() => {
-            uploadForm.reset();
-            uploadBtn.disabled = false;
             uploadProgress.classList.add('hidden');
             progressBar.style.width = '0%';
             progressText.textContent = '0%';
         }, 2000);
-    });
+    };
 });
