@@ -17,9 +17,10 @@ import (
 
 // Handler holds all HTTP handlers
 type Handler struct {
-	logger       *slog.Logger
-	tmpl         *template.Template
-	emailService *email.EmailService
+	logger          *slog.Logger
+	tmpl            *template.Template
+	emailService    *email.EmailService
+	templateManager *utils.TemplateManager
 }
 
 // New creates a new handler instance
@@ -48,19 +49,28 @@ func New(logger *slog.Logger, emailService *email.EmailService) *Handler {
 		logger.Error("failed to parse templates from all paths", "error", err)
 		// Return a handler with nil template - it will handle the error in the Home method
 		return &Handler{
-			logger:       logger,
-			tmpl:         nil,
-			emailService: emailService,
+			logger:          logger,
+			tmpl:            nil,
+			emailService:    emailService,
+			templateManager: utils.NewTemplateManager(""),
 		}
 	}
 
 	// Debug: list all available templates
 	logger.Info("available templates", "templates", tmpl.DefinedTemplates())
 
+	// Initialize template manager for email templates
+	templateManager := utils.NewTemplateManager("")
+	logger.Info("email templates discovered", "count", templateManager.GetTemplateCount(), "templates", templateManager.GetAvailableTemplates())
+
+	// Update email service with template manager
+	emailServiceWithTemplates := email.NewEmailService(emailService.GetConfig(), logger, templateManager)
+
 	return &Handler{
-		logger:       logger,
-		tmpl:         tmpl,
-		emailService: emailService,
+		logger:          logger,
+		tmpl:            tmpl,
+		emailService:    emailServiceWithTemplates,
+		templateManager: templateManager,
 	}
 }
 
@@ -75,9 +85,13 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get available templates from template manager
+	availableTemplates := h.templateManager.GetAvailableTemplates()
+
 	data := map[string]interface{}{
 		"Title":       "PDF Emailer",
 		"Description": "A web application for sending PDFs via email",
+		"Templates":   availableTemplates,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -154,17 +168,9 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate template name
-	validTemplates := []string{"template1", "template2", "template3"}
-	templateValid := false
-	for _, validTemplate := range validTemplates {
-		if templateName == validTemplate {
-			templateValid = true
-			break
-		}
-	}
-	if !templateValid {
-		h.renderUploadError(w, "Ungültiges Template ausgewählt")
+	// Validate template name using template manager
+	if err := h.templateManager.ValidateTemplate(templateName); err != nil {
+		h.renderUploadError(w, "Ungültiges Template ausgewählt: "+err.Error())
 		return
 	}
 

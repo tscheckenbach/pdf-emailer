@@ -5,8 +5,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const uploadProgress = document.getElementById('uploadProgress');
     const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
-    
     let selectedFiles = [];
+
+
 
     // Drag and drop functionality
     dropZone.addEventListener('dragover', function(e) {

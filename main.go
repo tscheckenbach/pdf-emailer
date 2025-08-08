@@ -13,6 +13,7 @@ import (
 	"pdf-emailer/internal/email"
 	"pdf-emailer/internal/handlers"
 	"pdf-emailer/internal/server"
+	"pdf-emailer/internal/utils"
 )
 
 func main() {
@@ -29,8 +30,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize template manager
+	templateManager := utils.NewTemplateManager("")
+
 	// Initialize email service
-	emailService := email.NewEmailService(cfg, logger)
+	emailService := email.NewEmailService(cfg, logger, templateManager)
 
 	// Initialize handlers
 	handlers := handlers.New(logger, emailService)

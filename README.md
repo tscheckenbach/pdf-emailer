@@ -26,12 +26,21 @@ pdf-emailer/
 │   ├── handlers/         # HTTP request handlers
 │   ├── middleware/       # HTTP middleware
 │   ├── server/           # HTTP server setup
-│   └── utils/            # Shared utilities (email validation, etc.)
-├── templates/            # HTML templates
-│   ├── base.html         # Base template with layout
-│   ├── home.html         # Home page template
-│   └── hello.html        # Hello World example template
-└── static/               # Static assets (CSS, JS, images)
+│   └── utils/            # Shared utilities (email validation, template management, etc.)
+├── assets/               # Application assets
+│   ├── templates/        # HTML and email templates
+│   │   ├── html/         # Web page templates
+│   │   │   ├── base.html # Base template with layout
+│   │   │   └── home.html # Home page template
+│   │   └── email/        # Email templates (MJML + HTML)
+│   │       ├── template1.mjml  # MJML source files
+│   │       ├── template1.html  # Compiled HTML templates
+│   │       ├── template2.mjml
+│   │       ├── template2.html
+│   │       └── ...
+│   └── js/               # JavaScript files
+│       └── upload.js     # Upload functionality
+└── uploads/              # Uploaded PDF files (created automatically)
 ```
 
 ## Prerequisites
@@ -74,6 +83,105 @@ pdf-emailer/
    ```
 
 The application will be available at `http://localhost:8080`
+
+## Email Templates
+
+The application uses a dynamic template system that automatically discovers email templates from the `assets/templates/email/` directory.
+
+### Adding New Email Templates
+
+To add a new email template, follow these steps:
+
+1. **Create MJML Template** (Recommended):
+   ```bash
+   # Create a new MJML file
+   touch assets/templates/email/template4.mjml
+   ```
+
+2. **Write MJML Content**:
+   ```mjml
+   <mjml>
+     <mj-head>
+       <mj-title>Template 4</mj-title>
+     </mj-head>
+     <mj-body>
+       <mj-section>
+         <mj-column>
+           <mj-text font-size="20px" color="#333" font-family="helvetica">
+             Hallo {{.RecipientName}},
+           </mj-text>
+           <mj-text color="#666" font-family="helvetica">
+             Hier ist Ihr PDF-Dokument: {{.PDFName}}
+           </mj-text>
+           <mj-text color="#666" font-family="helvetica">
+             Mit freundlichen Grüßen,<br/>
+             {{.SenderName}}
+           </mj-text>
+         </mj-column>
+       </mj-section>
+     </mj-body>
+   </mjml>
+   ```
+
+3. **Convert to HTML**:
+   ```bash
+   # Convert MJML to HTML using the Makefile
+   make mjml
+   
+   # Or manually:
+   mjml assets/templates/email/template4.mjml -o assets/templates/email/template4.html
+   ```
+
+4. **Template is Automatically Available**:
+   - The application will automatically discover the new template
+   - It will appear in the dropdown on the next page load
+   - No code changes required!
+
+### Template Variables
+
+Email templates support the following variables:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{.RecipientName}}` | Name of the email recipient | "John Doe" |
+| `{{.SenderName}}` | Name of the email sender | "PDF Emailer" |
+| `{{.PDFName}}` | Name of the uploaded PDF file | "document_2025-01-15.pdf" |
+| `{{.Date}}` | Current date in YYYY-MM-DD format | "2025-01-15" |
+
+### Template Discovery
+
+The application automatically:
+- ✅ Scans `assets/templates/email/` directory for `.html` files
+- ✅ Discovers new templates without restart
+- ✅ Validates template names during upload
+- ✅ Provides helpful error messages with available templates
+
+### Template Validation
+
+When uploading files, the system validates:
+- Template name is not empty
+- Template file exists in the email templates directory
+- Provides clear error messages if template is invalid
+
+Example error message:
+```
+"template 'nonexistent' not found - available templates: template1, template2, template3"
+```
+
+### Development Workflow
+
+1. **Create MJML file** in `assets/templates/email/`
+2. **Convert to HTML** using `make mjml`
+3. **Test template** by uploading a PDF and selecting it
+4. **View email** in Mailpit at `http://localhost:8025`
+
+### Template Best Practices
+
+- **Use MJML**: MJML provides responsive email templates that work across all email clients
+- **Keep it Simple**: Avoid complex layouts that might not render consistently
+- **Test Thoroughly**: Always test templates in Mailpit before production use
+- **Use Variables**: Leverage the available template variables for personalization
+- **Consistent Naming**: Use descriptive template names (e.g., `invoice_template`, `receipt_template`)
 
 ## Email Testing with Mailpit
 
@@ -160,6 +268,34 @@ Use the provided setup script to quickly configure your environment:
 - `POST /api/counter/decrement` - Decrement counter
 - `GET /api/dynamic-content` - Get dynamic content for HTMX
 
+## Template Management
+
+### MJML Conversion
+
+The application uses MJML for responsive email templates. To convert MJML files to HTML:
+
+```bash
+# Convert all MJML templates to HTML
+make mjml
+
+# Install MJML CLI (if not already installed)
+npm install -g mjml
+
+# Convert a specific template
+mjml assets/templates/email/template4.mjml -o assets/templates/email/template4.html
+```
+
+### Available Makefile Commands
+
+```bash
+make mjml          # Convert all MJML templates to HTML
+make build         # Build the application
+make run           # Run the application
+make dev           # Run with auto-reload (Air)
+make test          # Run all tests
+make test-coverage # Run tests with coverage
+```
+
 ## Testing
 
 The application includes comprehensive unit tests:
@@ -196,11 +332,15 @@ go test ./...
 2. Register the route in `internal/server/server.go`
 3. Add tests in `internal/handlers/handlers_test.go`
 
-### Adding New Templates
+### Adding New Web Templates
 
-1. Create the template file in `templates/`
+1. Create the template file in `assets/templates/html/`
 2. Update the handler to use the template
 3. Add any necessary data structures
+
+### Adding New Email Templates
+
+See the [Email Templates](#email-templates) section above for detailed instructions on adding new email templates.
 
 
 
@@ -220,6 +360,7 @@ go test ./...
 - **TailwindCSS**: Utility-first CSS framework
 - **slog**: Structured logging from Go standard library
 - **gomail**: Robust email sending library
+- **Template Manager**: Dynamic email template discovery and validation
 
 
 

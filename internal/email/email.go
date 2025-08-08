@@ -17,8 +17,9 @@ import (
 )
 
 type EmailService struct {
-	config *config.Config
-	logger *slog.Logger
+	config          *config.Config
+	logger          *slog.Logger
+	templateManager *utils.TemplateManager
 }
 
 type EmailData struct {
@@ -29,16 +30,22 @@ type EmailData struct {
 	Date          string
 }
 
-func NewEmailService(cfg *config.Config, logger *slog.Logger) *EmailService {
+func NewEmailService(cfg *config.Config, logger *slog.Logger, templateManager *utils.TemplateManager) *EmailService {
 	return &EmailService{
-		config: cfg,
-		logger: logger,
+		config:          cfg,
+		logger:          logger,
+		templateManager: templateManager,
 	}
 }
 
 func (e *EmailService) SendEmailWithAttachment(recipientEmail, recipientName, pdfPath, templateName string) error {
-	// Load email template
-	templatePath := filepath.Join("assets", "templates", "email", templateName+".html")
+	// Validate template using template manager
+	if err := e.templateManager.ValidateTemplate(templateName); err != nil {
+		return fmt.Errorf("invalid template: %w", err)
+	}
+
+	// Load email template using template manager path
+	templatePath := e.templateManager.GetTemplatePath(templateName)
 	tmpl, err := template.ParseFiles(templatePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse email template: %w", err)
@@ -125,4 +132,9 @@ func (e *EmailService) SendTestEmail(recipientEmail string) error {
 
 	e.logger.Info("Test email sent successfully", "recipient", recipientEmail)
 	return nil
+}
+
+// GetConfig returns the email service configuration
+func (e *EmailService) GetConfig() *config.Config {
+	return e.config
 }
