@@ -124,11 +124,13 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 		"email", email,
 		"file_path", filePath)
 
-	// Success: return checkmark HTML for HTMX swap
+	// Success: return green checkmark HTML for HTMX swap
 	w.Header().Set("HX-Trigger", "upload-success")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`<span class=\"ml-2 text-green-600\">&#10003;</span>`))
+	w.Write([]byte(`<svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+		<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+	</svg>`))
 }
 
 // UploadForm renders the upload form page (stub for now)
@@ -247,5 +249,16 @@ func isValidEmail(email string) bool {
 func (h *Handler) renderUploadError(w http.ResponseWriter, msg string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusBadRequest)
-	w.Write([]byte(`<span class=\"ml-2 text-red-600\">` + template.HTMLEscapeString(msg) + `</span>`))
+
+	// Return both the error icon and the error message as a data attribute
+	escapedMsg := template.HTMLEscapeString(msg)
+	w.Write([]byte(fmt.Sprintf(`<div class="relative group" data-error="%s">
+		<svg class="w-5 h-5 text-red-500 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+			<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+		</svg>
+		<div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-red-600 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+			%s
+			<div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-red-600"></div>
+		</div>
+	</div>`, escapedMsg, escapedMsg)))
 }
