@@ -1,0 +1,39 @@
+<mjml>
+  <mj-head>
+    <mj-title>PDF Emailer - Template 3</mj-title>
+    <mj-font name="Lato" href="https://fonts.googleapis.com/css?family=Lato" />
+    <mj-attributes>
+      <mj-all font-family="Lato, Arial, sans-serif" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#f5f5f5">
+    <mj-section background-color="#ffffff" padding="30px">
+      <mj-column>
+        <mj-text font-size="26px" color="#34495e" font-weight="700" align="center" padding-bottom="30px">
+          Liebe/r {{.RecipientName}},
+        </mj-text>
+        
+        <mj-text font-size="16px" color="#5a6c7d" line-height="28px" padding-bottom="15px">
+          Herzlich willkommen bei unserem PDF Emailer Service! Wir sind begeistert, Ihnen einen modernen und benutzerfreundlichen Service anbieten zu können.
+        </mj-text>
+        
+        <mj-text font-size="16px" color="#5a6c7d" line-height="28px" padding-bottom="15px">
+          "Life is like a box of chocolates" - wie Forrest Gump sagte. Jede E-Mail ist einzigartig und wir bemühen uns, Ihnen das beste Erlebnis zu bieten.
+        </mj-text>
+        
+        <mj-text font-size="16px" color="#5a6c7d" line-height="28px" padding-bottom="20px">
+          Vielen Dank für Ihr Vertrauen in unseren Service. Wir schätzen Ihre Geschäftsbeziehung und freuen uns auf eine erfolgreiche Zusammenarbeit.
+        </mj-text>
+        
+        <mj-divider border-color="#bdc3c7" border-width="1px" padding="30px 0" />
+        
+        <mj-text font-size="14px" color="#95a5a6" align="center">
+          Freundliche Grüße<br/>
+          Ihr PDF Emailer Team<br/>
+          <br/>
+          © 2025 PDF Emailer. Alle Rechte vorbehalten.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

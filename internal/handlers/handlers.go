@@ -24,9 +24,9 @@ type Handler struct {
 
 // New creates a new handler instance
 func New(db *database.DB, logger *slog.Logger) *Handler {
-	// Parse templates with proper naming
+	// Parse templates with proper naming from html subdirectory
 	tmpl := template.New("")
-	tmpl = template.Must(tmpl.ParseGlob("assets/templates/*.html"))
+	tmpl = template.Must(tmpl.ParseGlob("assets/templates/html/*.html"))
 
 	return &Handler{
 		db:     db,

@@ -1,0 +1,39 @@
+<mjml>
+  <mj-head>
+    <mj-title>PDF Emailer - Template 1</mj-title>
+    <mj-font name="Roboto" href="https://fonts.googleapis.com/css?family=Roboto" />
+    <mj-attributes>
+      <mj-all font-family="Roboto, Arial, sans-serif" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#f4f4f4">
+    <mj-section background-color="#ffffff" padding="20px">
+      <mj-column>
+        <mj-text font-size="24px" color="#333333" font-weight="bold" align="center" padding-bottom="20px">
+          Hallo {{.RecipientName}}!
+        </mj-text>
+        
+        <mj-text font-size="16px" color="#666666" line-height="24px" padding-bottom="15px">
+          Vielen Dank für Ihr Interesse an unserem Service. Wir freuen uns, Ihnen heute eine wichtige Nachricht zu übermitteln.
+        </mj-text>
+        
+        <mj-text font-size="16px" color="#666666" line-height="24px" padding-bottom="15px">
+          Wie der berühmte Satz aus "Casablanca" sagt: "Hier schauen wir uns an, Kleines." Manchmal sind die einfachsten Dinge die wichtigsten.
+        </mj-text>
+        
+        <mj-text font-size="16px" color="#666666" line-height="24px" padding-bottom="20px">
+          Wir hoffen, dass diese Nachricht Sie erreicht und Sie alle Informationen finden, die Sie benötigen. Bei Fragen stehen wir gerne zur Verfügung.
+        </mj-text>
+        
+        <mj-divider border-color="#e0e0e0" border-width="1px" padding="20px 0" />
+        
+        <mj-text font-size="14px" color="#999999" align="center">
+          Mit freundlichen Grüßen<br/>
+          Ihr PDF Emailer Team<br/>
+          <br/>
+          © 2025 PDF Emailer. Alle Rechte vorbehalten.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

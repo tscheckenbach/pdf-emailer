@@ -1,0 +1,39 @@
+<mjml>
+  <mj-head>
+    <mj-title>PDF Emailer - Template 2</mj-title>
+    <mj-font name="Open Sans" href="https://fonts.googleapis.com/css?family=Open+Sans" />
+    <mj-attributes>
+      <mj-all font-family="Open Sans, Arial, sans-serif" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#f8f9fa">
+    <mj-section background-color="#ffffff" padding="25px">
+      <mj-column>
+        <mj-text font-size="28px" color="#2c3e50" font-weight="600" align="center" padding-bottom="25px">
+          Guten Tag {{.RecipientName}},
+        </mj-text>
+        
+        <mj-text font-size="16px" color="#555555" line-height="26px" padding-bottom="15px">
+          Es ist uns eine große Freude, Ihnen diese Nachricht zu senden. Wir arbeiten kontinuierlich daran, unseren Service zu verbessern.
+        </mj-text>
+        
+        <mj-text font-size="16px" color="#555555" line-height="26px" padding-bottom="15px">
+          "May the Force be with you" - wie in Star Wars, wünschen wir Ihnen viel Erfolg bei Ihren Projekten. Manchmal braucht man einfach ein bisschen Glück und die richtigen Werkzeuge.
+        </mj-text>
+        
+        <mj-text font-size="16px" color="#555555" line-height="26px" padding-bottom="20px">
+          Bitte zögern Sie nicht, sich bei uns zu melden, falls Sie weitere Unterstützung benötigen. Wir sind hier, um Ihnen zu helfen.
+        </mj-text>
+        
+        <mj-divider border-color="#ecf0f1" border-width="2px" padding="25px 0" />
+        
+        <mj-text font-size="14px" color="#7f8c8d" align="center">
+          Beste Grüße<br/>
+          Das PDF Emailer Team<br/>
+          <br/>
+          © 2025 PDF Emailer. Alle Rechte vorbehalten.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

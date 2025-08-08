@@ -1,4 +1,4 @@
-.PHONY: help build run test test-coverage clean deps lint
+.PHONY: help build run test test-coverage clean deps lint mjml
 
 # Default target
 help:
@@ -11,6 +11,7 @@ help:
 	@echo "  clean         - Clean build artifacts"
 	@echo "  deps          - Download dependencies"
 	@echo "  lint          - Run linter"
+	@echo "  mjml          - Convert MJML templates to HTML"
 
 # Build the application
 build:
@@ -58,6 +59,21 @@ lint:
 install-tools:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install github.com/air-verse/air@latest
+
+# Convert MJML templates to HTML
+mjml:
+	@echo "Converting MJML templates to HTML..."
+	@cd assets/templates/email && \
+	for file in *.mjml; do \
+		if command -v mjml >/dev/null 2>&1; then \
+			echo "Converting $$file..."; \
+			mjml "$$file" -o "$${file%.mjml}.html"; \
+		else \
+			echo "MJML CLI not found. Please install with: npm install -g mjml"; \
+			exit 1; \
+		fi; \
+	done
+	@echo "MJML conversion complete!"
 
 
 
