@@ -38,7 +38,7 @@ func NewEmailService(cfg *config.Config, logger *slog.Logger, templateManager *u
 	}
 }
 
-func (e *EmailService) SendEmailWithAttachment(recipientEmail, recipientName, pdfPath, templateName string) error {
+func (e *EmailService) SendEmailWithAttachment(recipientEmail, recipientName, pdfPath, templateName, attachmentName string) error {
 	// Validate template using template manager
 	if err := e.templateManager.ValidateTemplate(templateName); err != nil {
 		return fmt.Errorf("invalid template: %w", err)
@@ -72,8 +72,8 @@ func (e *EmailService) SendEmailWithAttachment(recipientEmail, recipientName, pd
 	m.SetHeader("Subject", "PDF Dokument")
 	m.SetBody("text/html", body.String())
 
-	// Add PDF attachment
-	m.Attach(pdfPath)
+	// Add PDF attachment with custom name
+	m.Attach(pdfPath, mail.Rename(attachmentName+".pdf"))
 
 	// Convert port string to int
 	port, err := strconv.Atoi(e.config.SMTPConfig.Port)

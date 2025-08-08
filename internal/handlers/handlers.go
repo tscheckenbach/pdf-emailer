@@ -176,7 +176,7 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	// Send email with PDF attachment
 	recipientName := filename // Use filename as recipient name for now
-	err = h.emailService.SendEmailWithAttachment(email, recipientName, filePath, templateName)
+	err = h.emailService.SendEmailWithAttachment(email, recipientName, filePath, templateName, filename)
 	if err != nil {
 		h.logger.Error("Failed to send email", "error", err, "email", email, "template", templateName)
 		h.renderUploadError(w, "Fehler beim Senden der E-Mail: "+err.Error())
