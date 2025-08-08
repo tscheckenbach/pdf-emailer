@@ -24,11 +24,8 @@ run:
 
 # Run the application with Air (auto-reload on file changes)
 dev:
-	@echo "Starting database..."
-	docker compose stop && docker compose up db mailpit -d
-	@echo "Waiting for database to be ready..."
-	@until docker compose exec -T db pg_isready -U appuser; do sleep 1; done
-	@echo "Database is ready!"
+	@echo "Starting Mailpit..."
+	docker compose stop && docker compose up mailpit -d
 	@echo "Starting Air development server..."
 	export PATH="/opt/homebrew/bin:$$PATH" && air
 

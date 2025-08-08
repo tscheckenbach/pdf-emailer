@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"log/slog"
 	"os"
 
@@ -12,17 +11,7 @@ import (
 type Config struct {
 	ServerPort  string
 	Environment string
-	DatabaseConfig
 	SMTPConfig
-}
-
-type DatabaseConfig struct {
-	Host     string
-	Port     string
-	Name     string
-	User     string
-	Password string
-	Options  string
 }
 
 type SMTPConfig struct {
@@ -54,16 +43,6 @@ func Load() (*Config, error) {
 		Environment: getEnv("ENVIRONMENT", "development"),
 	}
 
-	// Use individual database config fields
-	config.DatabaseConfig = DatabaseConfig{
-		Host:     getEnv("POSTGRES_HOST", "localhost"),
-		Port:     getEnv("POSTGRES_PORT", "5432"),
-		Name:     getEnv("POSTGRES_DB", "pdf_emailer"),
-		User:     getEnv("POSTGRES_USER", ""),
-		Password: getEnv("POSTGRES_PASSWORD", ""),
-		Options:  getEnv("POSTGRES_OPTIONS", ""),
-	}
-
 	// Use individual SMTP config fields
 	config.SMTPConfig = SMTPConfig{
 		Host:      getEnv("SMTP_HOST", "smtp.example.com"),
@@ -75,17 +54,6 @@ func Load() (*Config, error) {
 		UseTLS:    getEnv("SMTP_USE_TLS", "true") == "true",
 	}
 
-	// Only validate required fields if we're not in development mode
-	if config.Environment != "development" {
-		if config.DatabaseConfig.Host == "" ||
-			config.DatabaseConfig.Port == "" ||
-			config.DatabaseConfig.Name == "" ||
-			config.DatabaseConfig.User == "" ||
-			config.DatabaseConfig.Password == "" {
-			return nil, fmt.Errorf("one or more required database configuration options are missing")
-		}
-	}
-
 	return config, nil
 }
 
@@ -95,14 +63,4 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
-}
-
-func (cfg *Config) GetDatabaseUrl() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?%s",
-		cfg.DatabaseConfig.User,
-		cfg.DatabaseConfig.Password,
-		cfg.DatabaseConfig.Host,
-		cfg.DatabaseConfig.Port,
-		cfg.DatabaseConfig.Name,
-		cfg.DatabaseConfig.Options)
 }

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -12,34 +11,10 @@ import (
 	"pdf-emailer/internal/utils"
 )
 
-// MockDB is a mock database for testing
-type MockDB struct {
-	pingError error
-}
-
-func (m *MockDB) Close(ctx context.Context) {}
-func (m *MockDB) Pool() interface{}         { return nil }
-func (m *MockDB) Ping(ctx context.Context) error {
-	return m.pingError
-}
-func (m *MockDB) Query(ctx context.Context, sql string, args ...interface{}) (interface{}, error) {
-	return nil, nil
-}
-func (m *MockDB) QueryRow(ctx context.Context, sql string, args ...interface{}) interface{} {
-	return nil
-}
-func (m *MockDB) Exec(ctx context.Context, sql string, args ...interface{}) (interface{}, error) {
-	return nil, nil
-}
-func (m *MockDB) Begin(ctx context.Context) (interface{}, error) {
-	return nil, nil
-}
-
 func TestHealthCheck(t *testing.T) {
 	// Create a test handler
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	handler := &Handler{
-		db:     nil, // No database dependency
 		logger: logger,
 		tmpl:   nil,
 	}

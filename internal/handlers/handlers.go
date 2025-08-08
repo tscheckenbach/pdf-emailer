@@ -11,21 +11,19 @@ import (
 	"strings"
 	"time"
 
-	"pdf-emailer/internal/database"
 	"pdf-emailer/internal/email"
 	"pdf-emailer/internal/utils"
 )
 
 // Handler holds all HTTP handlers
 type Handler struct {
-	db           database.DBInterface
 	logger       *slog.Logger
 	tmpl         *template.Template
 	emailService *email.EmailService
 }
 
 // New creates a new handler instance
-func New(db *database.DB, logger *slog.Logger, emailService *email.EmailService) *Handler {
+func New(logger *slog.Logger, emailService *email.EmailService) *Handler {
 	// Parse templates with proper naming from html subdirectory
 	tmpl := template.New("")
 
@@ -50,7 +48,6 @@ func New(db *database.DB, logger *slog.Logger, emailService *email.EmailService)
 		logger.Error("failed to parse templates from all paths", "error", err)
 		// Return a handler with nil template - it will handle the error in the Home method
 		return &Handler{
-			db:           db,
 			logger:       logger,
 			tmpl:         nil,
 			emailService: emailService,
@@ -61,7 +58,6 @@ func New(db *database.DB, logger *slog.Logger, emailService *email.EmailService)
 	logger.Info("available templates", "templates", tmpl.DefinedTemplates())
 
 	return &Handler{
-		db:           db,
 		logger:       logger,
 		tmpl:         tmpl,
 		emailService: emailService,

@@ -1,2 +1,0 @@
-CREATE DATABASE pdf_emailer;
-GRANT ALL PRIVILEGES ON DATABASE pdf_emailer TO appuser;

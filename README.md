@@ -5,7 +5,6 @@ A modern web application built with Go, featuring HTMX for dynamic interactions,
 ## Features
 
 - **Modern Web Stack**: Go + HTMX + TailwindCSS
-- **Database**: PostgreSQL with pgx driver (no ORM)
 - **HTTP Router**: Chi router with middleware
 - **Logging**: Structured logging with slog
 - **Testing**: Comprehensive unit tests with mocking
@@ -23,7 +22,6 @@ pdf-emailer/
 ├── README.md              # This file
 ├── internal/              # Internal application code
 │   ├── config/           # Configuration management
-│   ├── database/         # Database connection and interface
 │   ├── email/            # Email service with SMTP support
 │   ├── handlers/         # HTTP request handlers
 │   ├── middleware/       # HTTP middleware
@@ -39,7 +37,6 @@ pdf-emailer/
 ## Prerequisites
 
 - Go 1.24.5 or later (recommended: use Homebrew version)
-- PostgreSQL 12 or later
 - Docker and Docker Compose (for containerized development)
 - Git
 
@@ -71,14 +68,7 @@ pdf-emailer/
    # Edit .env.docker with your configuration
    ```
 
-4. **Set up PostgreSQL database**
-   ```sql
-   CREATE DATABASE pdf_emailer;
-   CREATE USER pdf_emailer_user WITH PASSWORD 'your_password';
-   GRANT ALL PRIVILEGES ON DATABASE pdf_emailer TO pdf_emailer_user;
-   ```
-
-5. **Run the application**
+4. **Run the application**
    ```bash
    go run main.go
    ```
@@ -127,12 +117,6 @@ The application uses environment variables for configuration:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SERVER_PORT` | `8080` | HTTP server port |
-| `DATABASE_HOST` | `localhost` | Database host |
-| `DATABASE_PORT` | `5432` | Database port |
-| `DATABASE_NAME` | `pdf_emailer` | Database name |
-| `DATABASE_USER` | - | Database username |
-| `DATABASE_PASSWORD` | - | Database password |
-| `DATABASE_OPTIONS` | - | Database connection options |
 | `ENVIRONMENT` | `development` | Application environment |
 | `LOG_LEVEL` | `info` | Logging level |
 
@@ -178,7 +162,7 @@ Use the provided setup script to quickly configure your environment:
 
 ## Testing
 
-The application includes comprehensive unit tests with mocking for database operations:
+The application includes comprehensive unit tests:
 
 ```bash
 # Run all tests (uses Go 1.24.5 automatically)
@@ -198,10 +182,11 @@ go test ./...
 
 ### Test Structure
 
-- **Handlers**: Test HTTP handlers with mocked database
-- **Database**: Test database operations with interface
+- **Handlers**: Test HTTP handlers
 - **Middleware**: Test middleware functionality
-- **Configuration**: Test configuration loading
+- **Configuration**: Test configuration loading and validation
+- **Email Service**: Test email sending functionality
+- **Utils**: Test shared utilities like email validation
 
 ## Development
 
@@ -217,14 +202,7 @@ go test ./...
 2. Update the handler to use the template
 3. Add any necessary data structures
 
-### Database Operations
 
-The application uses a database interface for testability:
-
-```go
-// Example database operation
-rows, err := db.Query(ctx, "SELECT * FROM users WHERE id = $1", userID)
-```
 
 ## Architecture
 
@@ -232,17 +210,16 @@ rows, err := db.Query(ctx, "SELECT * FROM users WHERE id = $1", userID)
 
 - **Testability**: All components are designed for easy testing
 - **Minimal Dependencies**: Uses standard library where possible
-- **Interface-based**: Database operations use interfaces for mocking
 - **Structured Logging**: Uses slog for consistent logging
 - **Security First**: Built-in security headers and CORS
 
 ### Key Components
 
 - **Chi Router**: Fast, lightweight HTTP router
-- **pgx**: High-performance PostgreSQL driver
 - **HTMX**: Dynamic HTML without JavaScript
 - **TailwindCSS**: Utility-first CSS framework
 - **slog**: Structured logging from Go standard library
+- **gomail**: Robust email sending library
 
 
 
@@ -269,7 +246,6 @@ CMD ["./main"]
 ```bash
 ENVIRONMENT=production
 SERVER_PORT=8080
-DATABASE_URL=postgres://user:pass@host:5432/db?sslmode=require
 LOG_LEVEL=info
 ```
 
