@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -50,12 +51,13 @@ func (tm *TemplateManager) discoverTemplates() {
 	}
 }
 
-// GetAvailableTemplates returns a list of available template names
+// GetAvailableTemplates returns a list of available template names sorted alphabetically
 func (tm *TemplateManager) GetAvailableTemplates() []string {
 	var templates []string
 	for template := range tm.templates {
 		templates = append(templates, template)
 	}
+	sort.Strings(templates)
 	return templates
 }
 
