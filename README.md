@@ -37,6 +37,7 @@ pdf-emailer/
 
 - Go 1.24.5 or later (recommended: use Homebrew version)
 - PostgreSQL 12 or later
+- Docker and Docker Compose (for containerized development)
 - Git
 
 ## Installation
@@ -55,7 +56,7 @@ pdf-emailer/
 3. **Set up environment variables**
    ```bash
    # Quick setup (recommended)
-   ./scripts/setup-env.sh -a
+   make setup-env
    
    # Or manually:
    # For local development
@@ -63,7 +64,7 @@ pdf-emailer/
    # Edit .env with your configuration
    
    # For Docker development
-   cp env.docker.example .env.docker
+   cp env.example .env.docker
    # Edit .env.docker with your configuration
    ```
 
@@ -80,6 +81,39 @@ pdf-emailer/
    ```
 
 The application will be available at `http://localhost:8080`
+
+## Email Testing with Mailpit
+
+For local development and testing, the application includes [Mailpit](https://github.com/axllent/mailpit) - a modern email testing tool that captures all outgoing emails and provides a web interface to view them.
+
+### Mailpit Features
+
+- **SMTP Server**: Captures all outgoing emails on port 1025
+- **Web Interface**: View emails at `http://localhost:8025`
+- **No Configuration**: Works out of the box with the provided Docker setup
+- **Email Preview**: View HTML, text, and attachments
+- **Search**: Find specific emails quickly
+
+### Using Mailpit
+
+1. **Start the application with Docker:**
+   ```bash
+   docker compose up
+   ```
+
+2. **Upload a PDF file** through the web interface at `http://localhost:8080`
+
+3. **View the sent email** at `http://localhost:8025`
+
+4. **Test different email templates** by selecting different templates during upload
+
+### Mailpit Configuration
+
+The Docker Compose setup automatically configures:
+- SMTP server on port 1025
+- Web interface on port 8025
+- Accepts any authentication (for development)
+- No TLS required (for local testing)
 
 ## Configuration
 

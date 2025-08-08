@@ -1,4 +1,4 @@
-.PHONY: help build run test test-coverage clean deps lint mjml
+.PHONY: help build run test test-coverage clean deps lint mjml setup-env
 
 # Default target
 help:
@@ -12,14 +12,15 @@ help:
 	@echo "  deps          - Download dependencies"
 	@echo "  lint          - Run linter"
 	@echo "  mjml          - Convert MJML templates to HTML"
+	@echo "  setup-env     - Set up environment files"
 
 # Build the application
 build:
-	go build -o bin/pdf-emailer main.go
+	export PATH="/opt/homebrew/bin:$$PATH" && go build -o bin/pdf-emailer main.go
 
 # Run the application
 run:
-	go run main.go
+	export PATH="/opt/homebrew/bin:$$PATH" && go run main.go
 
 # Run the application with Air (auto-reload on file changes)
 dev:
@@ -29,7 +30,7 @@ dev:
 	@until docker compose exec -T db pg_isready -U appuser; do sleep 1; done
 	@echo "Database is ready!"
 	@echo "Starting Air development server..."
-	air
+	export PATH="/opt/homebrew/bin:$$PATH" && air
 
 # Run tests
 test:
@@ -74,6 +75,12 @@ mjml:
 		fi; \
 	done
 	@echo "MJML conversion complete!"
+
+# Set up environment files
+setup-env:
+	@echo "Setting up environment files..."
+	@chmod +x scripts/setup-env.sh
+	@./scripts/setup-env.sh
 
 
 
