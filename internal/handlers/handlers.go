@@ -1,12 +1,15 @@
 package handlers
 
 import (
+	"fmt"
 	"html/template"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/mail"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"pdf-emailer/internal/database"
@@ -92,7 +95,14 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Save file
+	// Parse filename to extract email address
+	filename, email, err := parseFilenameWithEmail(handler.Filename)
+	if err != nil {
+		h.renderUploadError(w, err.Error())
+		return
+	}
+
+	// Save file with original name
 	filePath := filepath.Join(uploadDir, handler.Filename)
 	out, err := os.Create(filePath)
 	if err != nil {
@@ -106,6 +116,13 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 		h.renderUploadError(w, "Fehler beim Schreiben der Datei: "+err.Error())
 		return
 	}
+
+	// Log the parsed information
+	h.logger.Info("File uploaded successfully",
+		"original_filename", handler.Filename,
+		"parsed_filename", filename,
+		"email", email,
+		"file_path", filePath)
 
 	// Success: return checkmark HTML for HTMX swap
 	w.Header().Set("HX-Trigger", "upload-success")
@@ -122,6 +139,108 @@ func (h *Handler) UploadForm(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	h.tmpl.ExecuteTemplate(w, "base", data)
+}
+
+// parseFilenameWithEmail extracts filename and email from a filename with format: filename_email@domain.com.pdf
+func parseFilenameWithEmail(fullFilename string) (filename, email string, err error) {
+	// Check if filename has an extension
+	ext := filepath.Ext(fullFilename)
+	if ext == "" {
+		return "", "", fmt.Errorf("Dateiname muss eine Dateiendung haben (Format: filename_email@domain.com.pdf)")
+	}
+
+	baseName := strings.TrimSuffix(fullFilename, ext) // Remove extension
+
+	// Find the @ symbol to determine where the email starts
+	atIndex := strings.LastIndex(baseName, "@")
+	if atIndex == -1 {
+		return "", "", fmt.Errorf("Dateiname muss ein E-Mail-Adresse enthalten (Format: filename_email@domain.com.pdf)")
+	}
+
+	// Find the underscore that separates filename from email
+	// We need to find the underscore that comes before the email part
+	// The email part starts with the @ symbol, so we look for the underscore before it
+	emailStart := strings.LastIndex(baseName[:atIndex], "_")
+	if emailStart == -1 {
+		return "", "", fmt.Errorf("Dateiname muss ein E-Mail-Adresse enthalten (Format: filename_email@domain.com.pdf)")
+	}
+
+	filename = baseName[:emailStart]
+	email = baseName[emailStart+1:]
+
+	// Validate email format
+	if !isValidEmail(email) {
+		return "", "", fmt.Errorf("Ungültige E-Mail-Adresse im Dateinamen: %s", email)
+	}
+
+	return filename, email, nil
+}
+
+// isValidEmail validates email format using Go's net/mail package
+func isValidEmail(email string) bool {
+	// Use Go's built-in mail.ParseAddress for RFC 5322 compliant validation
+	addr, err := mail.ParseAddress(email)
+	if err != nil {
+		return false
+	}
+
+	// Extract the email address (remove display name if present)
+	emailAddr := addr.Address
+	if emailAddr == "" {
+		return false
+	}
+
+	// Basic sanity checks that mail.ParseAddress might not catch
+	// Check for minimum length (a@b.c minimum)
+	if len(emailAddr) < 5 {
+		return false
+	}
+
+	// Check for maximum length (RFC 5321 limit)
+	if len(emailAddr) > 254 {
+		return false
+	}
+
+	// Split by @ and validate parts
+	parts := strings.Split(emailAddr, "@")
+	if len(parts) != 2 {
+		return false
+	}
+
+	localPart := parts[0]
+	domain := parts[1]
+
+	// Validate local part length (RFC 5321 limit)
+	if len(localPart) == 0 || len(localPart) > 64 {
+		return false
+	}
+
+	// Validate domain length (RFC 5321 limit)
+	if len(domain) == 0 || len(domain) > 253 {
+		return false
+	}
+
+	// Check for valid domain structure (must have at least one dot)
+	if !strings.Contains(domain, ".") {
+		return false
+	}
+
+	// Check for valid TLD (at least 2 characters)
+	domainParts := strings.Split(domain, ".")
+	tld := domainParts[len(domainParts)-1]
+	if len(tld) < 2 {
+		return false
+	}
+
+	// Check for invalid characters in domain
+	invalidDomainChars := []string{"!", "#", "$", "%", "&", "*", "+", "=", "?", "^", "{", "|", "}", "~"}
+	for _, char := range invalidDomainChars {
+		if strings.Contains(domain, char) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // renderUploadError renders an error message for HTMX
