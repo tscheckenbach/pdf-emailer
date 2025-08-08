@@ -70,14 +70,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     `).join('')}
                 </div>
-                <div class="flex justify-center mt-4">
-                    <button type="button" onclick="uploadFiles()" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                        </svg>
-                        Upload Files
-                    </button>
-                </div>
             `;
         } else {
             fileListContainer.innerHTML = '';
@@ -185,6 +177,21 @@ document.addEventListener('DOMContentLoaded', function() {
             uploadProgress.classList.add('hidden');
             progressBar.style.width = '0%';
             progressText.textContent = '0%';
+            
+            // Replace the upload button with "Neuer Versand" button
+            const uploadButtonContainer = document.getElementById('uploadButtonContainer');
+            if (uploadButtonContainer) {
+                uploadButtonContainer.innerHTML = `
+                    <div class="flex justify-center">
+                        <a href="/" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            Neuer Versand
+                        </a>
+                    </div>
+                `;
+            }
         }, 2000);
     };
 });
