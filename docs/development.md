@@ -263,6 +263,27 @@ go test -memprofile=mem.prof ./...
 go tool pprof cpu.prof
 go tool pprof mem.prof
 ```
+ 
+### Upload Concurrency (Client-Side Throttling)
+
+To prevent server overload, file uploads are throttled on the client. The application uploads at most 5 files concurrently, proceeding in batches.
+
+- Default limit: 5 concurrent uploads
+- Location: `assets/js/upload.js`
+- Identifier: `MAX_CONCURRENCY`
+
+To change the limit, edit `MAX_CONCURRENCY` in `uploadFiles`:
+
+```javascript
+// assets/js/upload.js
+const MAX_CONCURRENCY = 5; // Adjust as needed
+for (let i = 0; i < filesToUpload.length; i += MAX_CONCURRENCY) {
+  const chunk = filesToUpload.slice(i, i + MAX_CONCURRENCY);
+  await Promise.all(chunk.map(file => uploadSingle(file)));
+}
+```
+
+Note: This is a client-side throttle and does not change server-side limits.
 
 ### Benchmarks
 

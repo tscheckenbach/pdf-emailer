@@ -110,15 +110,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
+        const filesToUpload = [...selectedFiles];
         let completedUploads = 0;
-        const totalFiles = selectedFiles.length;
-        
-        for (let i = 0; i < selectedFiles.length; i++) {
-            const file = selectedFiles[i];
+        const totalFiles = filesToUpload.length;
+        const MAX_CONCURRENCY = 5;
+
+        const uploadSingle = async (file) => {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('template', template);
-            
+
             try {
                 const response = await fetch('/upload', {
                     method: 'POST',
@@ -127,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         'HX-Request': 'true'
                     }
                 });
-                
+
                 if (response.ok) {
                     const responseText = await response.text();
                     const fileItem = document.querySelector(`[data-filename="${file.name}"]`);
@@ -165,12 +166,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         `;
                     }
                 }
+            } finally {
+                completedUploads++;
+                const progress = Math.round((completedUploads / totalFiles) * 100);
+                progressBar.style.width = progress + '%';
+                progressText.textContent = progress + '%';
             }
-            
-            completedUploads++;
-            const progress = Math.round((completedUploads / totalFiles) * 100);
-            progressBar.style.width = progress + '%';
-            progressText.textContent = progress + '%';
+        };
+
+        for (let i = 0; i < filesToUpload.length; i += MAX_CONCURRENCY) {
+            const chunk = filesToUpload.slice(i, i + MAX_CONCURRENCY);
+            await Promise.all(chunk.map(file => uploadSingle(file)));
         }
         
         setTimeout(() => {

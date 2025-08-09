@@ -47,6 +47,7 @@ The application will be available at `http://localhost:8080`
 - **Template Selection**: Choose from available email templates
 - **Email Validation**: Robust email format validation
 - **PDF Attachment**: Automatically attach PDFs to emails
+- **Client-side Throttling**: Uploads are limited to 5 concurrent files by default. Change `MAX_CONCURRENCY` in `assets/js/upload.js` to adjust.
 
 ### Development Experience
 
