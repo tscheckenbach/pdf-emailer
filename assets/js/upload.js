@@ -94,21 +94,38 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         uploadProgress.classList.remove('hidden');
-        
+
+        // Small helpers (vanilla JS only)
+        const spinnerHtml = `
+            <svg class="w-5 h-5 text-blue-500 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+        `;
+        const setStatusIcon = (fileName, html) => {
+            const fileItem = document.querySelector(`[data-filename="${fileName}"]`);
+            if (!fileItem) return;
+            const statusIcon = fileItem.querySelector('.status-icon');
+            if (statusIcon) statusIcon.innerHTML = html;
+        };
+        const networkErrorHtml = (message) => `
+            <div class="relative group">
+                <svg class="w-5 h-5 text-red-500 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                </svg>
+                <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-red-600 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                    Network error: ${message}
+                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-red-600"></div>
+                </div>
+            </div>
+        `;
+        const updateProgress = (completed, total) => {
+            const progress = Math.round((completed / total) * 100);
+            progressBar.style.width = progress + '%';
+            progressText.textContent = progress + '%';
+        };
+
         // Show loading state for all files
-        selectedFiles.forEach((file) => {
-            const fileItem = document.querySelector(`[data-filename="${file.name}"]`);
-            if (fileItem) {
-                const statusIcon = fileItem.querySelector('.status-icon');
-                if (statusIcon) {
-                    statusIcon.innerHTML = `
-                        <svg class="w-5 h-5 text-blue-500 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                        </svg>
-                    `;
-                }
-            }
-        });
+        selectedFiles.forEach((file) => setStatusIcon(file.name, spinnerHtml));
         
         const filesToUpload = [...selectedFiles];
         let completedUploads = 0;
@@ -129,48 +146,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
 
-                if (response.ok) {
-                    const responseText = await response.text();
-                    const fileItem = document.querySelector(`[data-filename="${file.name}"]`);
-                    if (fileItem) {
-                        const statusIcon = fileItem.querySelector('.status-icon');
-                        if (statusIcon) {
-                            statusIcon.innerHTML = responseText;
-                        }
-                    }
-                } else {
-                    const errorHtml = await response.text();
-                    const fileItem = document.querySelector(`[data-filename="${file.name}"]`);
-                    if (fileItem) {
-                        const statusIcon = fileItem.querySelector('.status-icon');
-                        if (statusIcon) {
-                            statusIcon.innerHTML = errorHtml;
-                        }
-                    }
-                }
+                const html = await response.text();
+                setStatusIcon(file.name, html);
             } catch (error) {
-                const fileItem = document.querySelector(`[data-filename="${file.name}"]`);
-                if (fileItem) {
-                    const statusIcon = fileItem.querySelector('.status-icon');
-                    if (statusIcon) {
-                        statusIcon.innerHTML = `
-                            <div class="relative group">
-                                <svg class="w-5 h-5 text-red-500 cursor-help" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
-                                </svg>
-                                <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-red-600 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                                    Network error: ${error.message}
-                                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-red-600"></div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                }
+                setStatusIcon(file.name, networkErrorHtml(error.message));
             } finally {
                 completedUploads++;
-                const progress = Math.round((completedUploads / totalFiles) * 100);
-                progressBar.style.width = progress + '%';
-                progressText.textContent = progress + '%';
+                updateProgress(completedUploads, totalFiles);
             }
         };
 
