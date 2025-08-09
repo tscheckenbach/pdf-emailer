@@ -26,6 +26,18 @@ The application uses environment variables for configuration, making it easy to 
 | `SMTP_FROM_NAME` | `PDF Emailer` | Sender name | Yes |
 | `SMTP_USE_TLS` | `false` | Enable TLS for SMTP | No |
 
+### HTTP Basic Auth (Optional)
+
+| Variable | Default | Description | Required |
+|----------|---------|-------------|----------|
+| `HTTP_AUTH_ENABLED` | `false` | Enable HTTP Basic Authentication for the app (except `/health`) | No |
+| `HTTP_AUTH_REALM` | `Restricted` | Realm displayed in the browser login prompt | No |
+| `HTTP_AUTH_USERS` | - | Comma-separated `username:password` pairs, e.g., `admin:admin123,editor:s3cret` | No |
+
+Notes:
+- If `HTTP_AUTH_ENABLED=true` and `HTTP_AUTH_USERS` is empty, all requests (except `/health`) will be denied.
+- This is a simple in-memory user list loaded from environment variables; use different values per environment via `.env`, `.env.local`, or `.env.docker`.
+
 ## Environment Files
 
 ### File Structure

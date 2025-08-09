@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
+	"pdf-emailer/internal/config"
 	"pdf-emailer/internal/handlers"
 	"pdf-emailer/internal/middleware"
 )
@@ -20,7 +21,7 @@ type Server struct {
 }
 
 // New creates a new server instance
-func New(port string, handlers *handlers.Handler, logger *slog.Logger) *Server {
+func New(cfg *config.Config, handlers *handlers.Handler, logger *slog.Logger) *Server {
 	router := chi.NewRouter()
 
 	// Add middleware
@@ -35,11 +36,22 @@ func New(port string, handlers *handlers.Handler, logger *slog.Logger) *Server {
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())
 
+	// Public routes (no auth)
+	router.Get("/health", handlers.HealthCheck)
+
+	// Protected subrouter (optional BasicAuth)
+	protected := chi.NewRouter()
+	if cfg.HTTPAuth.Enabled {
+		protected.Use(chimiddleware.BasicAuth(cfg.HTTPAuth.Realm, cfg.HTTPAuth.Users))
+	}
+	setupRoutes(protected, handlers)
+	router.Mount("/", protected)
+
 	// Setup routes
-	setupRoutes(router, handlers)
+	// Routes are mounted above
 
 	server := &http.Server{
-		Addr:    ":" + port,
+		Addr:    ":" + cfg.ServerPort,
 		Handler: router,
 	}
 
@@ -61,7 +73,6 @@ func setupRoutes(router chi.Router, handlers *handlers.Handler) {
 
 	// Web routes
 	router.Get("/", handlers.Home)
-	router.Get("/health", handlers.HealthCheck)
 	router.Get("/upload", handlers.UploadForm)
 	router.Post("/upload", handlers.Upload)
 }

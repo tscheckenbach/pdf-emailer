@@ -40,7 +40,7 @@ func main() {
 	handlers := handlers.New(logger, emailService)
 
 	// Initialize server
-	srv := server.New(cfg.ServerPort, handlers, logger)
+	srv := server.New(cfg, handlers, logger)
 
 	// Start server in a goroutine
 	go func() {

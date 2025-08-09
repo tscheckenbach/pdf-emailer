@@ -3,6 +3,7 @@ package config
 import (
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -12,6 +13,7 @@ type Config struct {
 	ServerPort  string
 	Environment string
 	SMTPConfig
+	HTTPAuth HTTPAuthConfig
 }
 
 type SMTPConfig struct {
@@ -22,6 +24,13 @@ type SMTPConfig struct {
 	FromEmail string
 	FromName  string
 	UseTLS    bool
+}
+
+// HTTPAuthConfig controls optional HTTP Basic Authentication
+type HTTPAuthConfig struct {
+	Enabled bool
+	Realm   string
+	Users   map[string]string // username -> password
 }
 
 // Load loads configuration from environment variables
@@ -54,6 +63,13 @@ func Load() (*Config, error) {
 		UseTLS:    getEnv("SMTP_USE_TLS", "true") == "true",
 	}
 
+	// HTTP Basic Auth
+	config.HTTPAuth = HTTPAuthConfig{
+		Enabled: getEnv("HTTP_AUTH_ENABLED", "false") == "true",
+		Realm:   getEnv("HTTP_AUTH_REALM", "Restricted"),
+		Users:   parseHTTPAuthUsers(getEnv("HTTP_AUTH_USERS", "")),
+	}
+
 	return config, nil
 }
 
@@ -63,4 +79,30 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+// parseHTTPAuthUsers parses a comma-separated list of user:password pairs
+// Example: "alice:secret,bob:password123"
+func parseHTTPAuthUsers(raw string) map[string]string {
+	users := make(map[string]string)
+	if raw == "" {
+		return users
+	}
+	parts := strings.Split(raw, ",")
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		username, password, found := strings.Cut(p, ":")
+		if !found {
+			continue
+		}
+		username = strings.TrimSpace(username)
+		if username == "" {
+			continue
+		}
+		users[username] = password
+	}
+	return users
 }
