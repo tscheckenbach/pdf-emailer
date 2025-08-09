@@ -84,12 +84,12 @@ document.addEventListener('DOMContentLoaded', function() {
     window.uploadFiles = async function() {
         const template = document.getElementById('template').value;
         if (!template) {
-            alert('Es muss ein Template ausgewählt werden');
+        alert('Es muss eine Vorlage ausgewählt werden');
             return;
         }
         
         if (selectedFiles.length === 0) {
-            alert('Es müssen PDF-Dateien hinzugefügt werden');
+        alert('Es müssen PDF-Dateien hinzugefügt werden');
             return;
         }
 
@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
                 </svg>
                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-red-600 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                    Network error: ${message}
+                    Netzwerkfehler: ${message}
                     <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-red-600"></div>
                 </div>
             </div>

@@ -90,7 +90,7 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 
 	data := map[string]interface{}{
 		"Title":       "PDF Emailer",
-		"Description": "A web application for sending PDFs via email",
+		"Description": "Eine Webanwendung zum Versenden von PDFs per E‑Mail",
 		"Templates":   availableTemplates,
 	}
 
@@ -99,7 +99,7 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 	if err := h.tmpl.ExecuteTemplate(w, "base", data); err != nil {
 		h.logger.Error("failed to execute template", "error", err)
 		// Fallback to plain text error without explicitly writing status to avoid double headers
-		_, _ = w.Write([]byte("failed to execute template"))
+		_, _ = w.Write([]byte("Fehler beim Rendern der Seite"))
 	}
 }
 
@@ -115,7 +115,7 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 // Upload handles file uploads
 func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		http.Error(w, "Methode nicht erlaubt", http.StatusMethodNotAllowed)
 		return
 	}
 

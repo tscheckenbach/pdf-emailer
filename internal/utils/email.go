@@ -8,36 +8,36 @@ import (
 // ValidateEmail validates email format using Go's net/mail package for RFC 5322 compliant validation
 func ValidateEmail(email string) error {
 	if email == "" {
-		return &EmailValidationError{Message: "email address cannot be empty"}
+		return &EmailValidationError{Message: "E-Mail-Adresse darf nicht leer sein"}
 	}
 
 	// Use Go's built-in mail.ParseAddress for RFC 5322 compliant validation
 	addr, err := mail.ParseAddress(email)
 	if err != nil {
-		return &EmailValidationError{Message: "invalid email format", OriginalError: err}
+		return &EmailValidationError{Message: "Ungültiges E-Mail-Format", OriginalError: err}
 	}
 
 	// Extract the email address (remove display name if present)
 	emailAddr := addr.Address
 	if emailAddr == "" {
-		return &EmailValidationError{Message: "email address is empty after parsing"}
+		return &EmailValidationError{Message: "E-Mail-Adresse ist nach dem Parsen leer"}
 	}
 
 	// Basic sanity checks that mail.ParseAddress might not catch
 	// Check for minimum length (a@b.c minimum)
 	if len(emailAddr) < 5 {
-		return &EmailValidationError{Message: "email address too short"}
+		return &EmailValidationError{Message: "E-Mail-Adresse ist zu kurz"}
 	}
 
 	// Check for maximum length (RFC 5321 limit)
 	if len(emailAddr) > 254 {
-		return &EmailValidationError{Message: "email address too long"}
+		return &EmailValidationError{Message: "E-Mail-Adresse ist zu lang"}
 	}
 
 	// Split by @ and validate parts
 	parts := strings.Split(emailAddr, "@")
 	if len(parts) != 2 {
-		return &EmailValidationError{Message: "email must contain exactly one @ symbol"}
+		return &EmailValidationError{Message: "E-Mail muss genau ein @-Zeichen enthalten"}
 	}
 
 	localPart := parts[0]
@@ -45,31 +45,31 @@ func ValidateEmail(email string) error {
 
 	// Validate local part length (RFC 5321 limit)
 	if len(localPart) == 0 || len(localPart) > 64 {
-		return &EmailValidationError{Message: "local part of email is invalid"}
+		return &EmailValidationError{Message: "Lokaler Teil der E-Mail ist ungültig"}
 	}
 
 	// Validate domain length (RFC 5321 limit)
 	if len(domain) == 0 || len(domain) > 253 {
-		return &EmailValidationError{Message: "domain part of email is invalid"}
+		return &EmailValidationError{Message: "Domänenteil der E-Mail ist ungültig"}
 	}
 
 	// Check for valid domain structure (must have at least one dot)
 	if !strings.Contains(domain, ".") {
-		return &EmailValidationError{Message: "domain must contain a dot"}
+		return &EmailValidationError{Message: "Domäne muss einen Punkt enthalten"}
 	}
 
 	// Check for valid TLD (at least 1 character - some valid TLDs can be single character)
 	domainParts := strings.Split(domain, ".")
 	tld := domainParts[len(domainParts)-1]
 	if len(tld) < 1 {
-		return &EmailValidationError{Message: "top-level domain cannot be empty"}
+		return &EmailValidationError{Message: "Top-Level-Domain darf nicht leer sein"}
 	}
 
 	// Check for invalid characters in domain
 	invalidDomainChars := []string{"!", "#", "$", "%", "&", "*", "+", "=", "?", "^", "{", "|", "}", "~"}
 	for _, char := range invalidDomainChars {
 		if strings.Contains(domain, char) {
-			return &EmailValidationError{Message: "domain contains invalid characters"}
+			return &EmailValidationError{Message: "Domäne enthält ungültige Zeichen"}
 		}
 	}
 

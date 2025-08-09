@@ -118,7 +118,7 @@ func TestTemplateManager_ValidateTemplate(t *testing.T) {
 	if err := tm.ValidateTemplate(""); err == nil {
 		t.Error("Expected error for empty template name")
 	} else {
-		expectedMsg := "template name cannot be empty"
+		expectedMsg := "Vorlagenname darf nicht leer sein"
 		if err.Error() != expectedMsg {
 			t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
 		}
@@ -128,7 +128,7 @@ func TestTemplateManager_ValidateTemplate(t *testing.T) {
 	if err := tm.ValidateTemplate("nonexistent"); err == nil {
 		t.Error("Expected error for invalid template name")
 	} else {
-		expectedMsg := "template 'nonexistent' not found - available templates: test"
+		expectedMsg := "Vorlage 'nonexistent' nicht gefunden – verfügbare Vorlagen: test"
 		if err.Error() != expectedMsg {
 			t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
 		}

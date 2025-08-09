@@ -69,18 +69,18 @@ func (tm *TemplateManager) IsTemplateValid(templateName string) bool {
 // ValidateTemplate validates a template name and returns an error if invalid
 func (tm *TemplateManager) ValidateTemplate(templateName string) error {
 	if templateName == "" {
-		return &TemplateValidationError{Message: "template name cannot be empty"}
+		return &TemplateValidationError{Message: "Vorlagenname darf nicht leer sein"}
 	}
 
 	if !tm.IsTemplateValid(templateName) {
 		available := tm.GetAvailableTemplates()
 		if len(available) == 0 {
 			return &TemplateValidationError{
-				Message: fmt.Sprintf("template '%s' not found - no templates available", templateName),
+				Message: fmt.Sprintf("Vorlage '%s' nicht gefunden – keine Vorlagen verfügbar", templateName),
 			}
 		}
 		return &TemplateValidationError{
-			Message: fmt.Sprintf("template '%s' not found - available templates: %s",
+			Message: fmt.Sprintf("Vorlage '%s' nicht gefunden – verfügbare Vorlagen: %s",
 				templateName, strings.Join(available, ", ")),
 		}
 	}
