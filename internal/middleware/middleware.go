@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
 // Logger middleware logs HTTP requests
@@ -12,17 +14,18 @@ func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 
-			// Create a response writer wrapper to capture status code
-			wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+			// Use chi's WrapResponseWriter to properly capture status and bytes
+			ww := chimiddleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
-			next.ServeHTTP(wrapped, r)
+			next.ServeHTTP(ww, r)
 
 			duration := time.Since(start)
 
 			logger.Info("http request",
 				"method", r.Method,
 				"path", r.URL.Path,
-				"status", wrapped.statusCode,
+				"status", ww.Status(),
+				"bytes_written", ww.BytesWritten(),
 				"duration", duration,
 				"user_agent", r.UserAgent(),
 				"remote_addr", r.RemoteAddr,
@@ -63,17 +66,4 @@ func SecurityHeaders() func(http.Handler) http.Handler {
 	}
 }
 
-// responseWriter wraps http.ResponseWriter to capture status code
-type responseWriter struct {
-	http.ResponseWriter
-	statusCode int
-}
-
-func (rw *responseWriter) WriteHeader(code int) {
-	rw.statusCode = code
-	rw.ResponseWriter.WriteHeader(code)
-}
-
-func (rw *responseWriter) Write(b []byte) (int, error) {
-	return rw.ResponseWriter.Write(b)
-}
+// Removed custom responseWriter wrapper in favor of chi's WrapResponseWriter

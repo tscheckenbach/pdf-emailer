@@ -94,10 +94,12 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 		"Templates":   availableTemplates,
 	}
 
+	// Don't set status explicitly; let template execution control it
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.tmpl.ExecuteTemplate(w, "base", data); err != nil {
 		h.logger.Error("failed to execute template", "error", err)
-		http.Error(w, "failed to execute template", http.StatusInternalServerError)
+		// Fallback to plain text error without explicitly writing status to avoid double headers
+		_, _ = w.Write([]byte("failed to execute template"))
 	}
 }
 
@@ -107,8 +109,7 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 	// Simple health check - just return OK since we don't use the database yet
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"healthy"}`))
+	_, _ = w.Write([]byte(`{"status":"healthy"}`))
 }
 
 // Upload handles file uploads
@@ -120,13 +121,13 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	err := r.ParseMultipartForm(32 << 20) // 32MB max memory
 	if err != nil {
-		h.renderUploadError(w, "Fehler beim Parsen des Upload-Formulars: "+err.Error())
+		h.renderUploadError(w, r, "Fehler beim Parsen des Upload-Formulars: "+err.Error())
 		return
 	}
 
 	file, handler, err := r.FormFile("file")
 	if err != nil {
-		h.renderUploadError(w, "Fehler beim Lesen der Datei: "+err.Error())
+		h.renderUploadError(w, r, "Fehler beim Lesen der Datei: "+err.Error())
 		return
 	}
 	defer file.Close()
@@ -135,14 +136,14 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	uploadDir := "uploads/" + time.Now().Format("2006-01-02")
 	err = os.MkdirAll(uploadDir, 0755)
 	if err != nil {
-		h.renderUploadError(w, "Fehler beim Erstellen des Upload-Ordners: "+err.Error())
+		h.renderUploadError(w, r, "Fehler beim Erstellen des Upload-Ordners: "+err.Error())
 		return
 	}
 
 	// Parse filename to extract email address
 	filename, email, err := parseFilenameWithEmail(handler.Filename)
 	if err != nil {
-		h.renderUploadError(w, err.Error())
+		h.renderUploadError(w, r, err.Error())
 		return
 	}
 
@@ -150,27 +151,27 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	filePath := filepath.Join(uploadDir, handler.Filename)
 	out, err := os.Create(filePath)
 	if err != nil {
-		h.renderUploadError(w, "Fehler beim Speichern der Datei: "+err.Error())
+		h.renderUploadError(w, r, "Fehler beim Speichern der Datei: "+err.Error())
 		return
 	}
 	defer out.Close()
 
 	_, err = io.Copy(out, file)
 	if err != nil {
-		h.renderUploadError(w, "Fehler beim Schreiben der Datei: "+err.Error())
+		h.renderUploadError(w, r, "Fehler beim Schreiben der Datei: "+err.Error())
 		return
 	}
 
 	// Get template selection from form
 	templateName := r.FormValue("template")
 	if templateName == "" {
-		h.renderUploadError(w, "Template muss ausgewählt werden")
+		h.renderUploadError(w, r, "Template muss ausgewählt werden")
 		return
 	}
 
 	// Validate template name using template manager
 	if err := h.templateManager.ValidateTemplate(templateName); err != nil {
-		h.renderUploadError(w, "Ungültiges Template ausgewählt: "+err.Error())
+		h.renderUploadError(w, r, "Ungültiges Template ausgewählt: "+err.Error())
 		return
 	}
 
@@ -179,7 +180,7 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	err = h.emailService.SendEmailWithAttachment(email, recipientName, filePath, templateName, filename)
 	if err != nil {
 		h.logger.Error("Failed to send email", "error", err, "email", email, "template", templateName)
-		h.renderUploadError(w, "Fehler beim Senden der E-Mail: "+err.Error())
+		h.renderUploadError(w, r, "Fehler beim Senden der E-Mail: "+err.Error())
 		return
 	}
 
@@ -194,8 +195,7 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	// Success: return green checkmark HTML for HTMX swap
 	w.Header().Set("HX-Trigger", "upload-success")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`<svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+	_, _ = w.Write([]byte(`<svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
 		<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
 	</svg>`))
 }
@@ -246,7 +246,7 @@ func parseFilenameWithEmail(fullFilename string) (filename, email string, err er
 }
 
 // renderUploadError renders an error message for HTMX
-func (h *Handler) renderUploadError(w http.ResponseWriter, msg string) {
+func (h *Handler) renderUploadError(w http.ResponseWriter, r *http.Request, msg string) {
 	// Return both the error icon and the error message as a data attribute
 	escapedMsg := template.HTMLEscapeString(msg)
 	errorHTML := fmt.Sprintf(`<div class="relative group" data-error="%s">
@@ -260,7 +260,7 @@ func (h *Handler) renderUploadError(w http.ResponseWriter, msg string) {
 	</div>`, escapedMsg, escapedMsg)
 
 	// Set headers and write response manually
+	// Write HTML without setting status explicitly to avoid conflicts with compression/timeout wrappers
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusBadRequest)
-	w.Write([]byte(errorHTML))
+	_, _ = w.Write([]byte(errorHTML))
 }

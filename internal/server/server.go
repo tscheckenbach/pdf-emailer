@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -30,11 +31,13 @@ func New(cfg *config.Config, handlers *handlers.Handler, logger *slog.Logger) *S
 	router.Use(chimiddleware.RealIP)
 	router.Use(chimiddleware.CleanPath)
 	router.Use(chimiddleware.GetHead)
-	router.Use(chimiddleware.Compress(5))
-	router.Use(chimiddleware.Timeout(60))
-	router.Use(middleware.Logger(logger)) // Use our custom logger
+	// Place CORS and SecurityHeaders before compression to avoid superfluous WriteHeader logs
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())
+	router.Use(chimiddleware.Timeout(60 * time.Second))
+	router.Use(middleware.Logger(logger)) // Use our custom logger
+	// Apply compression closest to the handlers
+	router.Use(chimiddleware.Compress(5))
 
 	// Public routes (no auth)
 	router.Get("/health", handlers.HealthCheck)
@@ -71,9 +74,14 @@ func setupRoutes(router chi.Router, handlers *handlers.Handler) {
 	router.Route("/api", func(r chi.Router) {
 	})
 
-	// Web routes
-	router.Get("/", handlers.Home)
-	router.Get("/upload", handlers.UploadForm)
+	// Web routes with timeout for GET pages only
+	router.Route("/", func(r chi.Router) {
+		r.Use(chimiddleware.Timeout(60 * time.Second))
+		r.Get("/", handlers.Home)
+		r.Get("/upload", handlers.UploadForm)
+	})
+
+	// Upload endpoint without timeout to avoid premature header writes on large uploads
 	router.Post("/upload", handlers.Upload)
 }
 
