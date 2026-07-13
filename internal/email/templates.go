@@ -1,6 +1,7 @@
-package utils
+package email
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -69,20 +70,15 @@ func (tm *TemplateManager) IsTemplateValid(templateName string) bool {
 // ValidateTemplate validates a template name and returns an error if invalid
 func (tm *TemplateManager) ValidateTemplate(templateName string) error {
 	if templateName == "" {
-		return &TemplateValidationError{Message: "Vorlagenname darf nicht leer sein"}
+		return errors.New("template name must not be empty")
 	}
 
 	if !tm.IsTemplateValid(templateName) {
 		available := tm.GetAvailableTemplates()
 		if len(available) == 0 {
-			return &TemplateValidationError{
-				Message: fmt.Sprintf("Vorlage '%s' nicht gefunden – keine Vorlagen verfügbar", templateName),
-			}
+			return fmt.Errorf("template %q not found: no templates available", templateName)
 		}
-		return &TemplateValidationError{
-			Message: fmt.Sprintf("Vorlage '%s' nicht gefunden – verfügbare Vorlagen: %s",
-				templateName, strings.Join(available, ", ")),
-		}
+		return fmt.Errorf("template %q not found, available: %s", templateName, strings.Join(available, ", "))
 	}
 
 	return nil
@@ -102,13 +98,4 @@ func (tm *TemplateManager) GetTemplateCount() int {
 func (tm *TemplateManager) RefreshTemplates() {
 	tm.templates = make(map[string]bool)
 	tm.discoverTemplates()
-}
-
-// TemplateValidationError represents a template validation error
-type TemplateValidationError struct {
-	Message string
-}
-
-func (e *TemplateValidationError) Error() string {
-	return e.Message
 }

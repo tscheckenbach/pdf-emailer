@@ -13,34 +13,35 @@ import (
 	"pdf-emailer/internal/email"
 	"pdf-emailer/internal/handlers"
 	"pdf-emailer/internal/server"
-	"pdf-emailer/internal/utils"
 )
 
 func main() {
-	// Initialize logger
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
-	slog.SetDefault(logger)
-
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		logger.Error("failed to load configuration", "error", err)
+		slog.Error("failed to load configuration", "error", err)
 		os.Exit(1)
 	}
 
-	// Initialize template manager
-	templateManager := utils.NewTemplateManager("")
+	// Initialize logger with configured level
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: cfg.LogLevel,
+	}))
+	slog.SetDefault(logger)
 
-	// Initialize email service
+	// Initialize template manager and email service
+	templateManager := email.NewTemplateManager("")
 	emailService := email.NewEmailService(cfg, logger, templateManager)
 
 	// Initialize handlers
-	handlers := handlers.New(logger, emailService)
+	h, err := handlers.New(logger, emailService, templateManager)
+	if err != nil {
+		logger.Error("failed to initialize handlers", "error", err)
+		os.Exit(1)
+	}
 
 	// Initialize server
-	srv := server.New(cfg, handlers, logger)
+	srv := server.New(cfg, h, logger)
 
 	// Start server in a goroutine
 	go func() {

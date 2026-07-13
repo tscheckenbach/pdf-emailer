@@ -12,23 +12,26 @@ import (
 	"time"
 
 	"pdf-emailer/internal/email"
-	"pdf-emailer/internal/utils"
 )
+
+// maxUploadBytes limits the total size of an upload request body.
+const maxUploadBytes = 50 << 20 // 50 MB
 
 // Handler holds all HTTP handlers
 type Handler struct {
 	logger          *slog.Logger
 	tmpl            *template.Template
 	emailService    *email.EmailService
-	templateManager *utils.TemplateManager
+	templateManager *email.TemplateManager
 }
 
-// New creates a new handler instance
-func New(logger *slog.Logger, emailService *email.EmailService) *Handler {
-	// Parse templates with proper naming from html subdirectory
+// New creates a new handler instance. It fails if the page templates cannot
+// be loaded, so the application can abort at startup instead of serving 500s.
+func New(logger *slog.Logger, emailService *email.EmailService, templateManager *email.TemplateManager) (*Handler, error) {
+	// Parse templates with proper naming from html subdirectory.
+	// Try multiple possible paths since the working directory differs
+	// between `go run` and the compiled binary.
 	tmpl := template.New("")
-
-	// Try multiple possible paths for templates
 	templatePaths := []string{
 		"assets/templates/html/*.html",
 		"./assets/templates/html/*.html",
@@ -44,54 +47,29 @@ func New(logger *slog.Logger, emailService *email.EmailService) *Handler {
 		}
 		logger.Debug("failed to parse templates from path", "path", path, "error", err)
 	}
-
 	if err != nil {
-		logger.Error("failed to parse templates from all paths", "error", err)
-		// Return a handler with nil template - it will handle the error in the Home method
-		return &Handler{
-			logger:          logger,
-			tmpl:            nil,
-			emailService:    emailService,
-			templateManager: utils.NewTemplateManager(""),
-		}
+		return nil, fmt.Errorf("failed to parse page templates: %w", err)
 	}
 
-	// Debug: list all available templates
 	logger.Info("available templates", "templates", tmpl.DefinedTemplates())
-
-	// Initialize template manager for email templates
-	templateManager := utils.NewTemplateManager("")
 	logger.Info("email templates discovered", "count", templateManager.GetTemplateCount(), "templates", templateManager.GetAvailableTemplates())
-
-	// Update email service with template manager
-	emailServiceWithTemplates := email.NewEmailService(emailService.GetConfig(), logger, templateManager)
 
 	return &Handler{
 		logger:          logger,
 		tmpl:            tmpl,
-		emailService:    emailServiceWithTemplates,
+		emailService:    emailService,
 		templateManager: templateManager,
-	}
+	}, nil
 }
 
 // Home handles the home page
 func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 	h.logger.Info("home page request", "method", r.Method, "path", r.URL.Path)
 
-	// Check if template is available
-	if h.tmpl == nil {
-		h.logger.Error("template not available")
-		http.Error(w, "Template not available", http.StatusInternalServerError)
-		return
-	}
-
-	// Get available templates from template manager
-	availableTemplates := h.templateManager.GetAvailableTemplates()
-
-	data := map[string]interface{}{
+	data := map[string]any{
 		"Title":       "PDF Emailer",
 		"Description": "Eine Webanwendung zum Versenden von PDFs per E‑Mail",
-		"Templates":   availableTemplates,
+		"Templates":   h.templateManager.GetAvailableTemplates(),
 	}
 
 	// Don't set status explicitly; let template execution control it
@@ -107,88 +85,101 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	h.logger.Debug("health check request")
 
-	// Simple health check - just return OK since we don't use the database yet
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write([]byte(`{"status":"healthy"}`))
 }
 
 // Upload handles file uploads
 func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Methode nicht erlaubt", http.StatusMethodNotAllowed)
-		return
-	}
+	// Cap the request body so oversized uploads cannot fill the disk
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
 
 	err := r.ParseMultipartForm(32 << 20) // 32MB max memory
 	if err != nil {
-		h.renderUploadError(w, r, "Fehler beim Parsen des Upload-Formulars: "+err.Error())
+		h.renderUploadError(w, "Fehler beim Parsen des Upload-Formulars: "+err.Error())
 		return
 	}
 
 	file, handler, err := r.FormFile("file")
 	if err != nil {
-		h.renderUploadError(w, r, "Fehler beim Lesen der Datei: "+err.Error())
+		h.renderUploadError(w, "Fehler beim Lesen der Datei: "+err.Error())
 		return
 	}
 	defer file.Close()
 
-	// Create uploads/YYYY-MM-DD directory
-	uploadDir := "uploads/" + time.Now().Format("2006-01-02")
-	err = os.MkdirAll(uploadDir, 0755)
-	if err != nil {
-		h.renderUploadError(w, r, "Fehler beim Erstellen des Upload-Ordners: "+err.Error())
+	// Defense-in-depth: never trust a client-supplied path
+	safeName := filepath.Base(handler.Filename)
+
+	if !strings.EqualFold(filepath.Ext(safeName), ".pdf") {
+		h.renderUploadError(w, "Nur PDF-Dateien sind erlaubt")
+		return
+	}
+
+	// Verify the file content actually starts with the PDF magic bytes
+	header := make([]byte, 5)
+	if _, err := io.ReadFull(file, header); err != nil || string(header) != "%PDF-" {
+		h.renderUploadError(w, "Datei ist keine gültige PDF-Datei")
+		return
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		h.renderUploadError(w, "Fehler beim Lesen der Datei: "+err.Error())
 		return
 	}
 
 	// Parse filename to extract email address
-	filename, email, err := parseFilenameWithEmail(handler.Filename)
+	filename, recipient, err := parseFilenameWithEmail(safeName)
 	if err != nil {
-		h.renderUploadError(w, r, err.Error())
-		return
-	}
-
-	// Save file with original name
-	filePath := filepath.Join(uploadDir, handler.Filename)
-	out, err := os.Create(filePath)
-	if err != nil {
-		h.renderUploadError(w, r, "Fehler beim Speichern der Datei: "+err.Error())
-		return
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, file)
-	if err != nil {
-		h.renderUploadError(w, r, "Fehler beim Schreiben der Datei: "+err.Error())
+		h.renderUploadError(w, err.Error())
 		return
 	}
 
 	// Get template selection from form
 	templateName := r.FormValue("template")
 	if templateName == "" {
-		h.renderUploadError(w, r, "Template muss ausgewählt werden")
+		h.renderUploadError(w, "Template muss ausgewählt werden")
 		return
 	}
 
 	// Validate template name using template manager
 	if err := h.templateManager.ValidateTemplate(templateName); err != nil {
-		h.renderUploadError(w, r, "Ungültiges Template ausgewählt: "+err.Error())
+		h.renderUploadError(w, "Ungültiges Template ausgewählt: "+err.Error())
+		return
+	}
+
+	// Create uploads/YYYY-MM-DD directory
+	uploadDir := "uploads/" + time.Now().Format("2006-01-02")
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		h.renderUploadError(w, "Fehler beim Erstellen des Upload-Ordners: "+err.Error())
+		return
+	}
+
+	// Save file with original (sanitized) name
+	filePath := filepath.Join(uploadDir, safeName)
+	out, err := os.Create(filePath)
+	if err != nil {
+		h.renderUploadError(w, "Fehler beim Speichern der Datei: "+err.Error())
+		return
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, file); err != nil {
+		h.renderUploadError(w, "Fehler beim Schreiben der Datei: "+err.Error())
 		return
 	}
 
 	// Send email with PDF attachment
 	recipientName := filename // Use filename as recipient name for now
-	err = h.emailService.SendEmailWithAttachment(email, recipientName, filePath, templateName, filename)
+	err = h.emailService.SendEmailWithAttachment(recipient, recipientName, filePath, templateName, filename)
 	if err != nil {
-		h.logger.Error("Failed to send email", "error", err, "email", email, "template", templateName)
-		h.renderUploadError(w, r, "Fehler beim Senden der E-Mail: "+err.Error())
+		h.logger.Error("Failed to send email", "error", err, "email", recipient, "template", templateName)
+		h.renderUploadError(w, "Fehler beim Senden der E-Mail: "+err.Error())
 		return
 	}
 
-	// Log the parsed information
 	h.logger.Info("File uploaded and email sent successfully",
-		"original_filename", handler.Filename,
+		"original_filename", safeName,
 		"parsed_filename", filename,
-		"email", email,
+		"email", recipient,
 		"template", templateName,
 		"file_path", filePath)
 
@@ -202,16 +193,19 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 
 // UploadForm renders the upload form page (stub for now)
 func (h *Handler) UploadForm(w http.ResponseWriter, r *http.Request) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"Title":       "PDF Upload",
 		"Description": "Lade hier deine PDF-Dateien hoch.",
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	h.tmpl.ExecuteTemplate(w, "base", data)
+	if err := h.tmpl.ExecuteTemplate(w, "base", data); err != nil {
+		h.logger.Error("failed to execute template", "error", err)
+		_, _ = w.Write([]byte("Fehler beim Rendern der Seite"))
+	}
 }
 
 // parseFilenameWithEmail extracts filename and email from a filename with format: filename_email@domain.com.pdf
-func parseFilenameWithEmail(fullFilename string) (filename, email string, err error) {
+func parseFilenameWithEmail(fullFilename string) (filename, email_ string, err error) {
 	// Check if filename has an extension
 	ext := filepath.Ext(fullFilename)
 	if ext == "" {
@@ -235,18 +229,18 @@ func parseFilenameWithEmail(fullFilename string) (filename, email string, err er
 	}
 
 	filename = baseName[:emailStart]
-	email = baseName[emailStart+1:]
+	email_ = baseName[emailStart+1:]
 
 	// Validate email format
-	if !utils.IsValidEmail(email) {
-		return "", "", fmt.Errorf("Ungültige E-Mail-Adresse im Dateinamen: %s", email)
+	if !email.IsValidAddress(email_) {
+		return "", "", fmt.Errorf("Ungültige E-Mail-Adresse im Dateinamen: %s", email_)
 	}
 
-	return filename, email, nil
+	return filename, email_, nil
 }
 
 // renderUploadError renders an error message for HTMX
-func (h *Handler) renderUploadError(w http.ResponseWriter, r *http.Request, msg string) {
+func (h *Handler) renderUploadError(w http.ResponseWriter, msg string) {
 	// Return both the error icon and the error message as a data attribute
 	escapedMsg := template.HTMLEscapeString(msg)
 	errorHTML := fmt.Sprintf(`<div class="relative group" data-error="%s">
@@ -259,7 +253,6 @@ func (h *Handler) renderUploadError(w http.ResponseWriter, r *http.Request, msg 
 		</div>
 	</div>`, escapedMsg, escapedMsg)
 
-	// Set headers and write response manually
 	// Write HTML without setting status explicitly to avoid conflicts with compression/timeout wrappers
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write([]byte(errorHTML))

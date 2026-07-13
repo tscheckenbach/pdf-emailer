@@ -34,36 +34,27 @@ func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
 	}
 }
 
-// CORS middleware handles Cross-Origin Resource Sharing
-func CORS() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-			if r.Method == "OPTIONS" {
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
 // SecurityHeaders adds security-related HTTP headers
 func SecurityHeaders() func(http.Handler) http.Handler {
+	// The app serves its own scripts; the Tailwind CDN and inline scripts
+	// (theme toggle, tailwind.config) are the only exceptions.
+	const csp = "default-src 'self'; " +
+		"script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; " +
+		"style-src 'self' 'unsafe-inline'; " +
+		"img-src 'self' data:; " +
+		"connect-src 'self'; " +
+		"frame-ancestors 'none'; " +
+		"base-uri 'self'; " +
+		"form-action 'self'"
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("X-Content-Type-Options", "nosniff")
 			w.Header().Set("X-Frame-Options", "DENY")
-			w.Header().Set("X-XSS-Protection", "1; mode=block")
 			w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+			w.Header().Set("Content-Security-Policy", csp)
 
 			next.ServeHTTP(w, r)
 		})
 	}
 }
-
-// Removed custom responseWriter wrapper in favor of chi's WrapResponseWriter

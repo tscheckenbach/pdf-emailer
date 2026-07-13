@@ -4,14 +4,13 @@ import (
 	"testing"
 
 	"pdf-emailer/internal/config"
-	"pdf-emailer/internal/utils"
 )
 
 func TestNewEmailService(t *testing.T) {
 	cfg := &config.Config{
 		SMTPConfig: config.SMTPConfig{
 			Host:      "localhost",
-			Port:      "1025",
+			Port:      1025,
 			Username:  "test",
 			Password:  "test",
 			FromEmail: "test@example.com",
@@ -20,7 +19,7 @@ func TestNewEmailService(t *testing.T) {
 		},
 	}
 
-	templateManager := utils.NewTemplateManager("")
+	templateManager := NewTemplateManager("")
 	service := NewEmailService(cfg, nil, templateManager)
 	if service == nil {
 		t.Fatal("Expected email service to be created")
@@ -33,7 +32,7 @@ func TestNewEmailService(t *testing.T) {
 
 func TestValidateEmailAddress(t *testing.T) {
 	cfg := &config.Config{}
-	templateManager := utils.NewTemplateManager("")
+	templateManager := NewTemplateManager("")
 	service := NewEmailService(cfg, nil, templateManager)
 
 	tests := []struct {

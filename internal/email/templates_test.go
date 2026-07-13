@@ -1,4 +1,4 @@
-package utils
+package email
 
 import (
 	"os"
@@ -118,7 +118,7 @@ func TestTemplateManager_ValidateTemplate(t *testing.T) {
 	if err := tm.ValidateTemplate(""); err == nil {
 		t.Error("Expected error for empty template name")
 	} else {
-		expectedMsg := "Vorlagenname darf nicht leer sein"
+		expectedMsg := "template name must not be empty"
 		if err.Error() != expectedMsg {
 			t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
 		}
@@ -128,7 +128,7 @@ func TestTemplateManager_ValidateTemplate(t *testing.T) {
 	if err := tm.ValidateTemplate("nonexistent"); err == nil {
 		t.Error("Expected error for invalid template name")
 	} else {
-		expectedMsg := "Vorlage 'nonexistent' nicht gefunden – verfügbare Vorlagen: test"
+		expectedMsg := `template "nonexistent" not found, available: test`
 		if err.Error() != expectedMsg {
 			t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
 		}
@@ -201,13 +201,6 @@ func TestTemplateManager_RefreshTemplates(t *testing.T) {
 
 	if !tm.IsTemplateValid("test") {
 		t.Error("Expected 'test' template to be valid after refresh")
-	}
-}
-
-func TestTemplateValidationError(t *testing.T) {
-	err := &TemplateValidationError{Message: "test error"}
-	if err.Error() != "test error" {
-		t.Errorf("Expected 'test error', got '%s'", err.Error())
 	}
 }
 

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"pdf-emailer/internal/utils"
+	"pdf-emailer/internal/email"
 )
 
 func TestHealthCheck(t *testing.T) {
@@ -197,20 +197,20 @@ func TestIsValidEmail(t *testing.T) {
 		{"single character domain", "user@a", false},
 		{"single character TLD", "user@example.a", true}, // Single char TLDs can be valid
 		{"email with newline", "user@example.com\n", false},
-		{"email with tab", "user@example.com\t", true}, // mail.ParseAddress handles this
+		{"email with tab", "user@example.com\t", false}, // must be a bare address, no surrounding whitespace
 		{"email with special chars", "user@example#.com", false},
 		{"email too long", strings.Repeat("a", 250) + "@example.com", false},
 		{"local part too long", strings.Repeat("a", 65) + "@example.com", false},
 		{"domain too long", "user@" + strings.Repeat("a", 254) + ".com", false},
-		{"email with display name", "John Doe <john@example.com>", true},
-		{"email with quotes", "\"john doe\"@example.com", true}, // This should work with mail.ParseAddress
+		{"email with display name", "John Doe <john@example.com>", false}, // bare addresses only
+		{"email with quotes", "\"john doe\"@example.com", false},          // quoted local parts rejected
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := utils.IsValidEmail(tt.email)
+			got := email.IsValidAddress(tt.email)
 			if got != tt.isValid {
-				t.Errorf("utils.IsValidEmail(%q) = %v, want %v", tt.email, got, tt.isValid)
+				t.Errorf("email.IsValidAddress(%q) = %v, want %v", tt.email, got, tt.isValid)
 			}
 		})
 	}
@@ -225,8 +225,8 @@ func BenchmarkParseFilenameWithEmail(b *testing.B) {
 }
 
 func BenchmarkIsValidEmail(b *testing.B) {
-	email := "user.name+tag@sub.example.co.uk"
+	addr := "user.name+tag@sub.example.co.uk"
 	for i := 0; i < b.N; i++ {
-		_ = utils.IsValidEmail(email)
+		_ = email.IsValidAddress(addr)
 	}
 }

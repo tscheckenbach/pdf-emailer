@@ -1,8 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -12,13 +14,14 @@ import (
 type Config struct {
 	ServerPort  string
 	Environment string
+	LogLevel    slog.Level
 	SMTPConfig
 	HTTPAuth HTTPAuthConfig
 }
 
 type SMTPConfig struct {
 	Host      string
-	Port      string
+	Port      int
 	Username  string
 	Password  string
 	FromEmail string
@@ -50,12 +53,18 @@ func Load() (*Config, error) {
 	config := &Config{
 		ServerPort:  getEnv("SERVER_PORT", "8080"),
 		Environment: getEnv("ENVIRONMENT", "development"),
+		LogLevel:    parseLogLevel(getEnv("LOG_LEVEL", "info")),
+	}
+
+	smtpPort, err := strconv.Atoi(getEnv("SMTP_PORT", "1025"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid SMTP_PORT: %w", err)
 	}
 
 	// Use individual SMTP config fields
 	config.SMTPConfig = SMTPConfig{
-		Host:      getEnv("SMTP_HOST", "smtp.example.com"),
-		Port:      getEnv("SMTP_PORT", "587"),
+		Host:      getEnv("SMTP_HOST", "localhost"),
+		Port:      smtpPort,
 		Username:  getEnv("SMTP_USERNAME", ""),
 		Password:  getEnv("SMTP_PASSWORD", ""),
 		FromEmail: getEnv("SMTP_FROM_EMAIL", "noreply@example.com"),
@@ -70,7 +79,25 @@ func Load() (*Config, error) {
 		Users:   parseHTTPAuthUsers(getEnv("HTTP_AUTH_USERS", "")),
 	}
 
+	if config.HTTPAuth.Enabled && len(config.HTTPAuth.Users) == 0 {
+		return nil, fmt.Errorf("HTTP_AUTH_ENABLED is true but HTTP_AUTH_USERS is empty: all requests would be rejected")
+	}
+
 	return config, nil
+}
+
+// parseLogLevel maps a LOG_LEVEL string to a slog.Level, defaulting to info.
+func parseLogLevel(level string) slog.Level {
+	switch strings.ToLower(level) {
+	case "debug":
+		return slog.LevelDebug
+	case "warn":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
 }
 
 // getEnv gets an environment variable or returns a default value

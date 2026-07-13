@@ -7,6 +7,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressText = document.getElementById('progressText');
     let selectedFiles = [];
 
+    // Escape text for safe interpolation into HTML strings
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML.replace(/"/g, '&quot;');
+    }
+
 
 
     // Drag and drop functionality
@@ -52,14 +59,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 <h3 class="text-sm font-medium text-gray-700 mb-3">Selected Files:</h3>
                 <div class="space-y-2">
                     ${selectedFiles.map((file, index) => `
-                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg" data-filename="${file.name}">
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg" data-filename="${escapeHtml(file.name)}">
                             <div class="flex items-center space-x-3">
                                 <div class="status-icon">
                                     <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2h12v8H4V6z" clip-rule="evenodd"></path>
                                     </svg>
                                 </div>
-                                <span class="text-sm font-medium text-gray-900">${file.name}</span>
+                                <span class="text-sm font-medium text-gray-900">${escapeHtml(file.name)}</span>
                                 <span class="text-xs text-gray-500">(${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
                             </div>
                             <button type="button" onclick="removeFile(${index})" class="text-red-500 hover:text-red-700">
@@ -102,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </svg>
         `;
         const setStatusIcon = (fileName, html) => {
-            const fileItem = document.querySelector(`[data-filename="${fileName}"]`);
+            const fileItem = document.querySelector(`[data-filename="${CSS.escape(fileName)}"]`);
             if (!fileItem) return;
             const statusIcon = fileItem.querySelector('.status-icon');
             if (statusIcon) statusIcon.innerHTML = html;
@@ -113,7 +120,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
                 </svg>
                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-red-600 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                    Netzwerkfehler: ${message}
+                    Netzwerkfehler: ${escapeHtml(message)}
                     <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-red-600"></div>
                 </div>
             </div>
@@ -156,10 +163,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         };
 
-        for (let i = 0; i < filesToUpload.length; i += MAX_CONCURRENCY) {
-            const chunk = filesToUpload.slice(i, i + MAX_CONCURRENCY);
-            await Promise.all(chunk.map(file => uploadSingle(file)));
-        }
+        // Worker pool: keep up to MAX_CONCURRENCY uploads in flight continuously
+        let nextIndex = 0;
+        const worker = async () => {
+            while (nextIndex < filesToUpload.length) {
+                const file = filesToUpload[nextIndex++];
+                await uploadSingle(file);
+            }
+        };
+        const workerCount = Math.min(MAX_CONCURRENCY, filesToUpload.length);
+        await Promise.all(Array.from({ length: workerCount }, worker));
         
         setTimeout(() => {
             uploadProgress.classList.add('hidden');

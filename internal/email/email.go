@@ -7,11 +7,9 @@ import (
 	"html/template"
 	"log/slog"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"pdf-emailer/internal/config"
-	"pdf-emailer/internal/utils"
 
 	"gopkg.in/mail.v2"
 )
@@ -19,7 +17,7 @@ import (
 type EmailService struct {
 	config          *config.Config
 	logger          *slog.Logger
-	templateManager *utils.TemplateManager
+	templateManager *TemplateManager
 }
 
 type EmailData struct {
@@ -30,12 +28,21 @@ type EmailData struct {
 	Date          string
 }
 
-func NewEmailService(cfg *config.Config, logger *slog.Logger, templateManager *utils.TemplateManager) *EmailService {
+func NewEmailService(cfg *config.Config, logger *slog.Logger, templateManager *TemplateManager) *EmailService {
 	return &EmailService{
 		config:          cfg,
 		logger:          logger,
 		templateManager: templateManager,
 	}
+}
+
+// dialer builds an SMTP dialer from the service configuration.
+func (e *EmailService) dialer() *mail.Dialer {
+	d := mail.NewDialer(e.config.SMTPConfig.Host, e.config.SMTPConfig.Port, e.config.SMTPConfig.Username, e.config.SMTPConfig.Password)
+	if e.config.SMTPConfig.UseTLS {
+		d.TLSConfig = &tls.Config{ServerName: e.config.SMTPConfig.Host}
+	}
+	return d
 }
 
 func (e *EmailService) SendEmailWithAttachment(recipientEmail, recipientName, pdfPath, templateName, attachmentName string) error {
@@ -75,22 +82,8 @@ func (e *EmailService) SendEmailWithAttachment(recipientEmail, recipientName, pd
 	// Add PDF attachment with custom name
 	m.Attach(pdfPath, mail.Rename(attachmentName+".pdf"))
 
-	// Convert port string to int
-	port, err := strconv.Atoi(e.config.SMTPConfig.Port)
-	if err != nil {
-		return fmt.Errorf("invalid SMTP port: %w", err)
-	}
-
-	// Create dialer
-	d := mail.NewDialer(e.config.SMTPConfig.Host, port, e.config.SMTPConfig.Username, e.config.SMTPConfig.Password)
-
-	// Configure TLS if needed
-	if e.config.SMTPConfig.UseTLS {
-		d.TLSConfig = &tls.Config{ServerName: e.config.SMTPConfig.Host}
-	}
-
 	// Send email
-	if err := d.DialAndSend(m); err != nil {
+	if err := e.dialer().DialAndSend(m); err != nil {
 		return fmt.Errorf("failed to send email: %w", err)
 	}
 
@@ -100,7 +93,7 @@ func (e *EmailService) SendEmailWithAttachment(recipientEmail, recipientName, pd
 
 // ValidateEmailAddress validates if the provided email address is properly formatted
 func (e *EmailService) ValidateEmailAddress(email string) error {
-	return utils.ValidateEmail(email)
+	return ValidateAddress(email)
 }
 
 // SendTestEmail sends a test email to verify SMTP configuration
@@ -111,30 +104,11 @@ func (e *EmailService) SendTestEmail(recipientEmail string) error {
 	m.SetHeader("Subject", "Test Email - PDF Emailer")
 	m.SetBody("text/plain", "This is a test email to verify SMTP configuration is working correctly.")
 
-	// Convert port string to int
-	port, err := strconv.Atoi(e.config.SMTPConfig.Port)
-	if err != nil {
-		return fmt.Errorf("invalid SMTP port: %w", err)
-	}
-
-	// Create dialer
-	d := mail.NewDialer(e.config.SMTPConfig.Host, port, e.config.SMTPConfig.Username, e.config.SMTPConfig.Password)
-
-	// Configure TLS if needed
-	if e.config.SMTPConfig.UseTLS {
-		d.TLSConfig = &tls.Config{ServerName: e.config.SMTPConfig.Host}
-	}
-
 	// Send email
-	if err := d.DialAndSend(m); err != nil {
+	if err := e.dialer().DialAndSend(m); err != nil {
 		return fmt.Errorf("failed to send test email: %w", err)
 	}
 
 	e.logger.Info("Test email sent successfully", "recipient", recipientEmail)
 	return nil
-}
-
-// GetConfig returns the email service configuration
-func (e *EmailService) GetConfig() *config.Config {
-	return e.config
 }

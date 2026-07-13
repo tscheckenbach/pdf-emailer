@@ -31,8 +31,7 @@ func New(cfg *config.Config, handlers *handlers.Handler, logger *slog.Logger) *S
 	router.Use(chimiddleware.RealIP)
 	router.Use(chimiddleware.CleanPath)
 	router.Use(chimiddleware.GetHead)
-	// Place CORS and SecurityHeaders before compression to avoid superfluous WriteHeader logs
-	router.Use(middleware.CORS())
+	// Place SecurityHeaders before compression to avoid superfluous WriteHeader logs
 	router.Use(middleware.SecurityHeaders())
 	router.Use(chimiddleware.Timeout(60 * time.Second))
 	router.Use(middleware.Logger(logger)) // Use our custom logger
@@ -50,9 +49,6 @@ func New(cfg *config.Config, handlers *handlers.Handler, logger *slog.Logger) *S
 	setupRoutes(protected, handlers)
 	router.Mount("/", protected)
 
-	// Setup routes
-	// Routes are mounted above
-
 	server := &http.Server{
 		Addr:    ":" + cfg.ServerPort,
 		Handler: router,
@@ -69,10 +65,6 @@ func New(cfg *config.Config, handlers *handlers.Handler, logger *slog.Logger) *S
 func setupRoutes(router chi.Router, handlers *handlers.Handler) {
 	// Static files
 	router.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("assets"))))
-
-	// API routes
-	router.Route("/api", func(r chi.Router) {
-	})
 
 	// Web routes with timeout for GET pages only
 	router.Route("/", func(r chi.Router) {

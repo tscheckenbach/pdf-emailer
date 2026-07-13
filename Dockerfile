@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Install git and ca-certificates (needed for go mod download)
 RUN apk add --no-cache git ca-certificates
@@ -17,7 +17,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+RUN CGO_ENABLED=0 GOOS=linux go build -o main .
 
 # Final stage
 FROM alpine:latest
@@ -36,8 +36,9 @@ WORKDIR /app
 COPY --from=builder /app/main .
 
 # Copy templates and static files
+# Configuration comes from the environment (compose env_file);
+# never bake .env files with credentials into the image.
 COPY --from=builder /app/assets ./assets
-COPY --from=builder /app/.env.docker ./.env
 
 # Create uploads directory and set permissions
 RUN mkdir -p /app/uploads && \
@@ -51,7 +52,7 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Run the application
 CMD ["./main"] 

@@ -33,37 +33,37 @@ Go stdlib-first web app: **chi router + HTMX + TailwindCSS (via CDN, no build st
 
 ### Request flow / wiring (`main.go`)
 
-`config.Load()` → `utils.NewTemplateManager("")` → `email.NewEmailService(cfg, logger, templateManager)` → `handlers.New(logger, emailService)` → `server.New(cfg, handlers, logger)`.
+`config.Load()` → `email.NewTemplateManager("")` → `email.NewEmailService(cfg, logger, templateManager)` → `handlers.New(logger, emailService, templateManager)` → `server.New(cfg, h, logger)`.
 
-Note `handlers.New` re-parses HTML page templates *and* re-discovers email templates itself, then constructs a **second** `EmailService` internally (`emailServiceWithTemplates`) to attach the templateManager it just built — the one passed into `main.go`'s `handlers.New(...)` call is effectively discarded. Keep this in mind when tracing template-manager state.
+`config.Load` and `handlers.New` return errors and `main` exits on failure (fail-fast: missing page templates or invalid config abort startup). The logger level comes from `LOG_LEVEL` (debug/info/warn/error).
 
 ### Two independent template systems — don't confuse them
 
 - **Page templates** (`assets/templates/html/*.html`, e.g. `base.html`, `home.html`): parsed once at startup with `html/template`, `ParseGlob`, rendered via `ExecuteTemplate(w, "base", data)`. Loaded from multiple relative path candidates (`assets/templates/html/*.html`, `./...`, `../...`) since working directory differs between `go run` and compiled binary.
-- **Email templates** (`assets/templates/email/*.html`, compiled from sibling `.mjml` via `make mjml`): dynamically discovered at runtime by `utils.TemplateManager` (scans the directory, no code changes needed to add a template). Selected by name from the upload form, validated via `TemplateManager.ValidateTemplate`, parsed fresh per-send in `email.SendEmailWithAttachment` (`template.ParseFiles`, not cached). Available variables: `.RecipientName`, `.SenderName`, `.PDFName`, `.Date` (see `email.EmailData`).
+- **Email templates** (`assets/templates/email/*.html`, compiled from sibling `.mjml` via `make mjml`): dynamically discovered at runtime by `email.TemplateManager` (scans the directory, no code changes needed to add a template). Selected by name from the upload form, validated via `TemplateManager.ValidateTemplate`, parsed fresh per-send in `email.SendEmailWithAttachment` (`template.ParseFiles`, not cached). Available variables: `.RecipientName`, `.SenderName`, `.PDFName`, `.Date` (see `email.EmailData`).
 
 ### Upload flow (`internal/handlers/handlers.go` `Upload`)
 
-Filenames must encode the recipient in the form `filename_email@domain.com.pdf` — `parseFilenameWithEmail` splits on the last `@` then the last `_` before it to separate the display name from the address (`utils.IsValidEmail` validates the result). Files are saved to `uploads/YYYY-MM-DD/` (auto-created), then `emailService.SendEmailWithAttachment` attaches the saved PDF and sends via SMTP (`gopkg.in/mail.v2`). Responses are raw HTML fragments (inline SVG check/error icons) written directly for HTMX to swap in — not JSON, not full pages. Error messages are German-language, shown as `data-error` tooltips.
+Request body is capped via `http.MaxBytesReader` (50 MB, `maxUploadBytes`); only `.pdf` files whose content starts with the `%PDF-` magic bytes are accepted, and the client filename is passed through `filepath.Base` before use. Filenames must encode the recipient in the form `filename_email@domain.com.pdf` — `parseFilenameWithEmail` splits on the last `@` then the last `_` before it to separate the display name from the address (`email.IsValidAddress` validates the result; bare addresses only, no display names). Files are saved to `uploads/YYYY-MM-DD/` (auto-created), then `emailService.SendEmailWithAttachment` attaches the saved PDF and sends via SMTP (`gopkg.in/mail.v2`). Responses are raw HTML fragments (inline SVG check/error icons) written directly for HTMX to swap in — not JSON, not full pages. Error messages are German-language, shown as `data-error` tooltips.
 
 ### Routing (`internal/server/server.go`)
 
 - `/health` is public and unauthenticated.
 - Everything else is mounted under an optional `chimiddleware.BasicAuth` subrouter, gated by `HTTP_AUTH_ENABLED` (users configured via `HTTP_AUTH_USERS=user:pass,...` env var).
 - `/upload` (POST) is registered **outside** the 60s-timeout route group deliberately, to avoid premature header writes on large file uploads; GET page routes (`/`, `/upload`) do have the timeout.
-- Middleware order matters: CORS and SecurityHeaders run before `Compress` to avoid superfluous `WriteHeader` logs.
+- Middleware order matters: SecurityHeaders runs before `Compress` to avoid superfluous `WriteHeader` logs. There is deliberately no CORS middleware (the app is same-origin); SecurityHeaders sets a CSP that allows `'self'`, inline scripts, and the Tailwind CDN.
 
 ### Config (`internal/config/config.go`)
 
-Loads `.env`, then `.env.local`, then `.env.docker` — **first one found wins** (not merged/cascaded). Core knobs: `SERVER_PORT`, `ENVIRONMENT`, `SMTP_*` (host/port/user/pass/from email/from name/TLS), `HTTP_AUTH_*`. There is no database in this codebase despite references to PostgreSQL setup in the README/Makefile `dev-setup` target — those are stale/aspirational.
+Loads `.env`, then `.env.local`, then `.env.docker` — **first one found wins** (not merged/cascaded). Core knobs: `SERVER_PORT`, `ENVIRONMENT`, `LOG_LEVEL`, `SMTP_*` (host/port/user/pass/from email/from name/TLS; port is parsed to int at load, defaults `localhost:1025` for Mailpit), `HTTP_AUTH_*`. `Load` errors on a non-numeric `SMTP_PORT` and on `HTTP_AUTH_ENABLED=true` with empty `HTTP_AUTH_USERS`. There is no database in this codebase despite references to PostgreSQL setup in the README `dev-setup` notes — those are stale/aspirational.
 
 ### Client-side upload concurrency
 
-`assets/js/upload.js` throttles concurrent uploads client-side (`MAX_CONCURRENCY`, default 5, batched via `Promise.all` chunks) — this does not affect server-side limits.
+`assets/js/upload.js` throttles concurrent uploads client-side (`MAX_CONCURRENCY`, default 5, worker-pool pattern) — this does not affect server-side limits. HTMX is vendored at `assets/js/lib/htmx.min.js` (served as `/static/js/lib/htmx.min.js`); TailwindCSS still loads from its CDN.
 
 ## Documentation
 
-`docs/` has more detail: `installation.md`, `email-templates.md`, `development.md`, `configuration.md`. Treat these as generally reliable for setup/workflow but verify anything that claims specific runtime behavior against the code (some content, e.g. `LOG_LEVEL` env var and a `--validate-config` flag, is aspirational and not actually implemented).
+`docs/` has more detail: `installation.md`, `email-templates.md`, `development.md`, `configuration.md`. Treat these as generally reliable for setup/workflow but verify anything that claims specific runtime behavior against the code (some content, e.g. a `--validate-config` flag, is aspirational and not actually implemented).
 
 ---
 name: go
