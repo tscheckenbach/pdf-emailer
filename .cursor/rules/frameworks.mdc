@@ -1,0 +1,8 @@
+---
+description: Explains which frameworks, languages, tools, etc. to use
+globs:
+alwaysApply: false
+---
+Use Go as the backend language. For frontend interactivity and dynamic content updates, use HTMX. For styling and layout, use TailwindCSS. Avoid custom JavaScript and CSS where possible; prefer HTMX for AJAX and partial updates, and TailwindCSS utility classes for all styling needs.
+
+Prefer to either use Go's standard library or an external libraries with at least 1000 GitHub stars and active maintenance. Last commit to an external library used must not be older then 1 year.
