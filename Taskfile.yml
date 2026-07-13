@@ -1,0 +1,106 @@
+version: '3'
+
+vars:
+  PATH_PREFIX: /opt/homebrew/bin
+
+env:
+  PATH: "{{.PATH_PREFIX}}:{{.PATH}}"
+
+tasks:
+  default:
+    desc: Show available commands
+    cmds:
+      - task --list
+
+  build:
+    desc: Build the application
+    cmds:
+      - go build -o bin/pdf-emailer main.go
+
+  run:
+    desc: Run the application (starts Mailpit dependency first)
+    cmds:
+      - echo "Starting Mailpit..."
+      - docker compose stop && docker compose up mailpit -d
+      - go run main.go
+
+  up:
+    desc: Run full stack (app + Mailpit) via Docker Compose
+    cmds:
+      - docker compose up --build
+
+  dev:
+    desc: Run with Air (auto-reload on file changes)
+    cmds:
+      - echo "Starting Mailpit..."
+      - docker compose stop && docker compose up mailpit -d
+      - echo "Starting Air development server..."
+      - air
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test -v ./...
+
+  test-coverage:
+    desc: Run tests with coverage
+    cmds:
+      - go test -coverprofile=coverage.out ./...
+      - go tool cover -html=coverage.out -o coverage.html
+      - echo "Coverage report generated coverage.html"
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf bin/
+      - rm -f coverage.out coverage.html
+
+  deps:
+    desc: Download dependencies
+    cmds:
+      - go mod download
+      - go mod tidy
+
+  lint:
+    desc: Run linter
+    cmds:
+      - golangci-lint run
+
+  install-tools:
+    desc: Install development tools
+    cmds:
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+      - go install github.com/air-verse/air@latest
+
+  mjml:
+    desc: Convert MJML templates to HTML
+    dir: assets/templates/email
+    cmds:
+      - echo "Converting MJML templates to HTML..."
+      - |
+        for file in *.mjml; do
+          if command -v mjml >/dev/null 2>&1; then
+            echo "Converting $file..."
+            mjml "$file" -o "${file%.mjml}.html"
+          else
+            echo "MJML CLI not found. Please install with: npm install -g mjml"
+            exit 1
+          fi
+        done
+      - echo "MJML conversion complete!"
+
+  setup-env:
+    desc: Set up environment files
+    cmds:
+      - chmod +x scripts/setup-env.sh
+      - ./scripts/setup-env.sh
+
+  dev-setup:
+    desc: Development environment setup
+    deps: [deps, install-tools]
+    cmds:
+      - echo "Development environment setup complete!"
+      - echo "Next steps:"
+      - echo "1. Copy env.example to .env and configure your settings"
+      - echo "2. Set up your PostgreSQL database"
+      - echo "3. Run 'task run' to start the application"
