@@ -55,7 +55,11 @@ Request body is capped via `http.MaxBytesReader` (50 MB, `maxUploadBytes`); only
 
 ### Config (`internal/config/config.go`)
 
-Loads `.env`, then `.env.local`, then `.env.docker` — **first one found wins** (not merged/cascaded). Core knobs: `SERVER_PORT`, `ENVIRONMENT`, `LOG_LEVEL`, `SMTP_*` (host/port/user/pass/from email/from name/TLS; port is parsed to int at load, defaults `localhost:1025` for Mailpit), `HTTP_AUTH_*`. `Load` errors on a non-numeric `SMTP_PORT` and on `HTTP_AUTH_ENABLED=true` with empty `HTTP_AUTH_USERS`. There is no database in this codebase despite references to PostgreSQL setup in the README `dev-setup` notes — those are stale/aspirational.
+Loads `.env`, then `.env.local`, then `.env.docker` — **first one found wins** (not merged/cascaded). Core knobs: `SERVER_PORT`, `ENVIRONMENT`, `LOG_LEVEL`, `BASE_PATH` (mount prefix for reverse-proxying under a subdirectory, e.g. `/pdf-emailer`; empty means served at root — see below), `SMTP_*` (host/port/user/pass/from email/from name/TLS; port is parsed to int at load, defaults `localhost:1025` for Mailpit), `HTTP_AUTH_*`. `Load` errors on a non-numeric `SMTP_PORT` and on `HTTP_AUTH_ENABLED=true` with empty `HTTP_AUTH_USERS`. There is no database in this codebase — persistence is limited to uploaded PDFs on disk (`uploads/YYYY-MM-DD/`).
+
+### Reverse-proxy subdirectory (`BASE_PATH`)
+
+When `BASE_PATH` is set (e.g. `/pdf-emailer`), `server.go` mounts the whole app under that chi prefix instead of `/`. `/health` always stays unprefixed (only used internally, e.g. by the Docker `HEALTHCHECK`, never proxied). Because `chi.Mount` rewrites routing but leaves the request's `r.URL.Path` untouched, `setupRoutes`'s `http.StripPrefix` for `/static/*` must strip `basePath+"/static/"`, not just `"/static/"` — easy to break if the static route is touched. Page templates and `assets/js/upload.js` read `{{.BasePath}}` / `window.BASE_PATH` (injected in `base.html`) to prefix every browser-visible link, asset URL, and the `/upload` fetch call — any new hardcoded absolute path in a template or JS file will break under a subdirectory deploy.
 
 ### Client-side upload concurrency
 

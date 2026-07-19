@@ -46,8 +46,12 @@ func New(cfg *config.Config, handlers *handlers.Handler, logger *slog.Logger) *S
 	if cfg.HTTPAuth.Enabled {
 		protected.Use(chimiddleware.BasicAuth(cfg.HTTPAuth.Realm, cfg.HTTPAuth.Users))
 	}
-	setupRoutes(protected, handlers)
-	router.Mount("/", protected)
+	setupRoutes(protected, handlers, cfg.BasePath)
+	if cfg.BasePath == "" {
+		router.Mount("/", protected)
+	} else {
+		router.Mount(cfg.BasePath, protected)
+	}
 
 	server := &http.Server{
 		Addr:    ":" + cfg.ServerPort,
@@ -61,10 +65,13 @@ func New(cfg *config.Config, handlers *handlers.Handler, logger *slog.Logger) *S
 	}
 }
 
-// setupRoutes configures all application routes
-func setupRoutes(router chi.Router, handlers *handlers.Handler) {
+// setupRoutes configures all application routes. basePath is the mount
+// prefix (e.g. "/pdf-emailer", possibly ""): chi.Mount rewrites routing but
+// not the request's r.URL.Path, so http.StripPrefix must strip the full
+// browser-visible path, not just "/static/".
+func setupRoutes(router chi.Router, handlers *handlers.Handler, basePath string) {
 	// Static files
-	router.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("assets"))))
+	router.Handle("/static/*", http.StripPrefix(basePath+"/static/", http.FileServer(http.Dir("assets"))))
 
 	// Web routes with timeout for GET pages only
 	router.Route("/", func(r chi.Router) {

@@ -2,6 +2,11 @@ version: '3'
 
 vars:
   PATH_PREFIX: /opt/homebrew/bin
+  IMAGE: registry.creativation.de/pdf-emailer
+  VERSION:
+    sh: tr -d '[:space:]' < VERSION
+  TAG: '{{.TAG | default .VERSION}}'
+  PLATFORM: '{{.PLATFORM | default "linux/amd64"}}'
 
 env:
   PATH: "{{.PATH_PREFIX}}:{{.PATH}}"
@@ -102,5 +107,72 @@ tasks:
       - echo "Development environment setup complete!"
       - echo "Next steps:"
       - echo "1. Copy env.example to .env and configure your settings"
-      - echo "2. Set up your PostgreSQL database"
-      - echo "3. Run 'task run' to start the application"
+      - echo "2. Run 'task run' to start the application"
+
+  version:
+    desc: Show the local release version
+    cmds:
+      - printf '%s\n' '{{.VERSION}}'
+
+  version:bump:
+    desc: Bump VERSION with PART=major|minor|hotfix
+    vars:
+      PART: '{{.PART | default "hotfix"}}'
+    cmds:
+      - scripts/bump-version.sh {{.PART}}
+
+  version:major:
+    desc: Bump VERSION major number
+    cmds:
+      - task version:bump PART=major
+
+  version:minor:
+    desc: Bump VERSION minor number
+    cmds:
+      - task version:bump PART=minor
+
+  version:hotfix:
+    desc: Bump VERSION hotfix number
+    cmds:
+      - task version:bump PART=hotfix
+
+  docker-build:
+    desc: Build the Docker image
+    cmds:
+      - docker build --platform {{.PLATFORM}} -t {{.IMAGE}}:{{.TAG}} .
+
+  docker-push:
+    desc: Build and push the Docker image
+    cmds:
+      - docker build --platform {{.PLATFORM}} -t {{.IMAGE}}:{{.TAG}} .
+      - docker push {{.IMAGE}}:{{.TAG}}
+
+  docker-release:
+    desc: Build once, tag as TAG and latest, and push both tags
+    requires:
+      vars: [TAG]
+    cmds:
+      - docker build --platform {{.PLATFORM}} -t {{.IMAGE}}:{{.TAG}} -t {{.IMAGE}}:latest .
+      - docker push {{.IMAGE}}:{{.TAG}}
+      - docker push {{.IMAGE}}:latest
+
+  release:major:
+    desc: Bump major version, build once, tag as VERSION and latest, and push both tags
+    cmds:
+      - task version:major
+      - task docker-release TAG=$(tr -d '[:space:]' < VERSION)
+      - task version
+
+  release:minor:
+    desc: Bump minor version, build once, tag as VERSION and latest, and push both tags
+    cmds:
+      - task version:minor
+      - task docker-release TAG=$(tr -d '[:space:]' < VERSION)
+      - task version
+
+  release:hotfix:
+    desc: Bump hotfix version, build once, tag as VERSION and latest, and push both tags
+    cmds:
+      - task version:hotfix
+      - task docker-release TAG=$(tr -d '[:space:]' < VERSION)
+      - task version

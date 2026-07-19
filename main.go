@@ -34,7 +34,7 @@ func main() {
 	emailService := email.NewEmailService(cfg, logger, templateManager)
 
 	// Initialize handlers
-	h, err := handlers.New(logger, emailService, templateManager)
+	h, err := handlers.New(logger, emailService, templateManager, cfg.BasePath)
 	if err != nil {
 		logger.Error("failed to initialize handlers", "error", err)
 		os.Exit(1)

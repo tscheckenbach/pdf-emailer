@@ -15,6 +15,7 @@ type Config struct {
 	ServerPort  string
 	Environment string
 	LogLevel    slog.Level
+	BasePath    string
 	SMTPConfig
 	HTTPAuth HTTPAuthConfig
 }
@@ -54,6 +55,7 @@ func Load() (*Config, error) {
 		ServerPort:  getEnv("SERVER_PORT", "8080"),
 		Environment: getEnv("ENVIRONMENT", "development"),
 		LogLevel:    parseLogLevel(getEnv("LOG_LEVEL", "info")),
+		BasePath:    normalizeBasePath(getEnv("BASE_PATH", "")),
 	}
 
 	smtpPort, err := strconv.Atoi(getEnv("SMTP_PORT", "1025"))
@@ -98,6 +100,20 @@ func parseLogLevel(level string) slog.Level {
 	default:
 		return slog.LevelInfo
 	}
+}
+
+// normalizeBasePath ensures a non-empty base path starts with "/" and has no
+// trailing slash, so callers can safely concatenate it with sub-paths (e.g.
+// BasePath + "/static/..."). An empty base path is left untouched (app served at root).
+func normalizeBasePath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" || path == "/" {
+		return ""
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return strings.TrimSuffix(path, "/")
 }
 
 // getEnv gets an environment variable or returns a default value
