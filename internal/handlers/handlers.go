@@ -17,17 +17,26 @@ import (
 // maxUploadBytes limits the total size of an upload request body.
 const maxUploadBytes = 50 << 20 // 50 MB
 
+// maxConcurrentUploads bounds how many /upload requests (disk write + SMTP
+// send) run at once, server-side, regardless of what a client sends —
+// keeps concurrent SMTP connections to the relay bounded during a batch.
+const maxConcurrentUploads = 5
+
 // Handler holds all HTTP handlers
 type Handler struct {
 	logger          *slog.Logger
 	tmpl            *template.Template
 	emailService    *email.EmailService
 	templateManager *email.TemplateManager
+	basePath        string
+	uploadSem       chan struct{}
 }
 
 // New creates a new handler instance. It fails if the page templates cannot
 // be loaded, so the application can abort at startup instead of serving 500s.
-func New(logger *slog.Logger, emailService *email.EmailService, templateManager *email.TemplateManager) (*Handler, error) {
+// basePath is prefixed onto browser-visible URLs (static assets, links, the
+// upload endpoint) so the app can be reverse-proxied under a subdirectory.
+func New(logger *slog.Logger, emailService *email.EmailService, templateManager *email.TemplateManager, basePath string) (*Handler, error) {
 	// Parse templates with proper naming from html subdirectory.
 	// Try multiple possible paths since the working directory differs
 	// between `go run` and the compiled binary.
@@ -59,6 +68,8 @@ func New(logger *slog.Logger, emailService *email.EmailService, templateManager 
 		tmpl:            tmpl,
 		emailService:    emailService,
 		templateManager: templateManager,
+		basePath:        basePath,
+		uploadSem:       make(chan struct{}, maxConcurrentUploads),
 	}, nil
 }
 
@@ -70,6 +81,7 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 		"Title":       "PDF Emailer",
 		"Description": "Eine Webanwendung zum Versenden von PDFs per E‑Mail",
 		"Templates":   h.templateManager.GetAvailableTemplates(),
+		"BasePath":    h.basePath,
 	}
 
 	// Don't set status explicitly; let template execution control it
@@ -93,6 +105,15 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	// Cap the request body so oversized uploads cannot fill the disk
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
+
+	// Bound concurrent disk-write+SMTP-send work server-side, independent
+	// of the client's own concurrency limit
+	select {
+	case h.uploadSem <- struct{}{}:
+		defer func() { <-h.uploadSem }()
+	case <-r.Context().Done():
+		return
+	}
 
 	err := r.ParseMultipartForm(32 << 20) // 32MB max memory
 	if err != nil {
@@ -196,6 +217,7 @@ func (h *Handler) UploadForm(w http.ResponseWriter, r *http.Request) {
 	data := map[string]any{
 		"Title":       "PDF Upload",
 		"Description": "Lade hier deine PDF-Dateien hoch.",
+		"BasePath":    h.basePath,
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.tmpl.ExecuteTemplate(w, "base", data); err != nil {

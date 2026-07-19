@@ -3,9 +3,13 @@ package email
 import (
 	"bytes"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"log/slog"
+	"net"
+	"net/textproto"
 	"path/filepath"
 	"time"
 
@@ -82,13 +86,57 @@ func (e *EmailService) SendEmailWithAttachment(recipientEmail, recipientName, pd
 	// Add PDF attachment with custom name
 	m.Attach(pdfPath, mail.Rename(attachmentName+".pdf"))
 
-	// Send email
-	if err := e.dialer().DialAndSend(m); err != nil {
+	// Send email, retrying transient failures (e.g. an SMTP relay
+	// rate-limiting concurrent connections during a batch upload)
+	if err := e.sendWithRetry(m); err != nil {
 		return fmt.Errorf("failed to send email: %w", err)
 	}
 
 	e.logger.Info("Email sent successfully", "recipient", recipientEmail, "template", templateName)
 	return nil
+}
+
+// maxSendAttempts bounds retries for a single email send.
+const maxSendAttempts = 3
+
+// sendWithRetry sends m, retrying transient failures with backoff. Permanent
+// failures (bad auth, unknown recipient, 5xx responses) are returned
+// immediately without retrying.
+func (e *EmailService) sendWithRetry(m *mail.Message) error {
+	backoff := time.Second
+
+	var lastErr error
+	for attempt := 1; attempt <= maxSendAttempts; attempt++ {
+		lastErr = e.dialer().DialAndSend(m)
+		if lastErr == nil {
+			return nil
+		}
+		if attempt == maxSendAttempts || !isRetryableSMTPError(lastErr) {
+			return lastErr
+		}
+		e.logger.Warn("transient SMTP error, retrying", "attempt", attempt, "error", lastErr)
+		time.Sleep(backoff)
+		backoff *= 2
+	}
+	return lastErr
+}
+
+// isRetryableSMTPError reports whether err looks like a transient failure
+// (network timeout/reset, or an SMTP 4xx temporary-failure response) rather
+// than a permanent one (bad recipient, auth failure, 5xx response).
+func isRetryableSMTPError(err error) bool {
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	if errors.Is(err, io.EOF) {
+		return true
+	}
+	var protoErr *textproto.Error
+	if errors.As(err, &protoErr) {
+		return protoErr.Code >= 400 && protoErr.Code < 500
+	}
+	return false
 }
 
 // ValidateEmailAddress validates if the provided email address is properly formatted
